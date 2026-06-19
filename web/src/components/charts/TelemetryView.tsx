@@ -14,7 +14,8 @@ const C = {
   steer: "#8b7bff",
   gear: "#f5a524",
   delta: "#ff2d46",
-  ghost: "#5a626e",
+  // High-contrast colour for the overlaid reference lap (bright cyan, bold dashed).
+  reference: "#22d3ee",
 };
 const GRID = "#1b212a";
 const AXIS = "#5d6470";
@@ -34,14 +35,29 @@ interface ChannelMeta {
   height: number;
 }
 
+// Taller panels give more vertical resolution so two close laps separate visibly.
 const CHANNELS: ChannelMeta[] = [
-  { key: "speed", title: "Скорость", unit: "КМ/Ч", color: C.speed, channel: "speed_kmh", fill: "rgba(244,246,251,0.06)", height: 168 },
-  { key: "throttle", title: "Газ", unit: "%", color: C.throttle, channel: "throttle", fill: "rgba(61,220,132,0.10)", scalePct: true, yRange: [0, 100], height: 118 },
-  { key: "brake", title: "Тормоз", unit: "%", color: C.brake, channel: "brake", fill: "rgba(255,45,70,0.10)", scalePct: true, yRange: [0, 100], height: 118 },
-  { key: "steer", title: "Руль", color: C.steer, channel: "steer", yRange: [-1, 1], height: 108 },
-  { key: "gear", title: "Передача", color: C.gear, channel: "gear", yRange: [0, 9], stepped: true, height: 100 },
-  { key: "delta", title: "Дельта", unit: "С", color: C.delta, fill: "rgba(255,45,70,0.08)", height: 118 },
+  { key: "speed", title: "Скорость", unit: "КМ/Ч", color: C.speed, channel: "speed_kmh", fill: "rgba(244,246,251,0.05)", height: 210 },
+  { key: "throttle", title: "Газ", unit: "%", color: C.throttle, channel: "throttle", fill: "rgba(61,220,132,0.08)", scalePct: true, yRange: [0, 100], height: 150 },
+  { key: "brake", title: "Тормоз", unit: "%", color: C.brake, channel: "brake", fill: "rgba(255,45,70,0.08)", scalePct: true, yRange: [0, 100], height: 150 },
+  { key: "steer", title: "Руль", color: C.steer, channel: "steer", yRange: [-1, 1], height: 130 },
+  { key: "gear", title: "Передача", color: C.gear, channel: "gear", yRange: [0, 9], stepped: true, height: 120 },
+  { key: "delta", title: "Дельта", unit: "С", color: C.delta, fill: "rgba(255,45,70,0.08)", height: 150 },
 ];
+
+/** min/max across one or more channel arrays, skipping nulls. */
+function dataRange(...arrays: (number | null)[][]): [number, number] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const arr of arrays) {
+    for (const v of arr) {
+      if (v === null || Number.isNaN(v)) continue;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+  }
+  return Number.isFinite(lo) ? [lo, hi] : [0, 1];
+}
 
 function options(series: uPlot.Series[], yRange?: [number, number]): Omit<uPlot.Options, "width" | "height"> {
   return {
@@ -78,7 +94,7 @@ export function TelemetryView({
         if (!compare) continue;
         built.delta = {
           data: [compare.distance_m, compare.delta_s],
-          options: options([{}, { stroke: meta.color, width: 1.6, fill: meta.fill }]),
+          options: options([{}, { stroke: meta.color, width: 2, fill: meta.fill }]),
         };
         continue;
       }
@@ -90,20 +106,36 @@ export function TelemetryView({
         {},
         {
           stroke: meta.color,
-          width: 1.6,
+          width: 2.2,
           fill: meta.fill,
           paths: meta.stepped && stepped ? stepped({ align: 1 }) : undefined,
         },
       ];
 
+      let refValues: (number | null)[] | null = null;
       if (showRef && reference) {
         const refRaw = reference.channels[meta.channel as string];
         const resampled = resampleByDistance(reference.channels.lap_dist_m, refRaw, x);
-        data.push(meta.scalePct ? resampled.map((v) => (v === null ? null : v * 100)) : resampled);
-        series.push({ stroke: C.ghost, width: 1.2, dash: [5, 4] });
+        refValues = meta.scalePct ? resampled.map((v) => (v === null ? null : v * 100)) : resampled;
+        data.push(refValues);
+        series.push({
+          stroke: C.reference,
+          width: 2,
+          dash: [7, 5],
+          paths: meta.stepped && stepped ? stepped({ align: 1 }) : undefined,
+        });
       }
 
-      built[meta.key] = { data, options: options(series, meta.yRange) };
+      // Speed has no natural fixed range — fit the axis tightly to the data
+      // (both laps) so a few km/h of difference is clearly visible.
+      let yRange = meta.yRange;
+      if (meta.key === "speed") {
+        const [lo, hi] = dataRange(values, refValues ?? []);
+        const pad = Math.max(6, (hi - lo) * 0.1);
+        yRange = [Math.max(0, Math.floor((lo - pad) / 10) * 10), Math.ceil((hi + pad) / 10) * 10];
+      }
+
+      built[meta.key] = { data, options: options(series, yRange) };
     }
     return built;
   }, [trace, reference, compare, showRef]);
@@ -132,6 +164,22 @@ export function TelemetryView({
           </Chip>
         )}
       </div>
+
+      {showRef && reference && (
+        <div className="flex items-center gap-5 px-1 text-[11px] text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-5 rounded-full" style={{ backgroundColor: C.speed }} />
+            твой круг
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-0 w-5 border-t-2 border-dashed"
+              style={{ borderColor: C.reference }}
+            />
+            эталон
+          </span>
+        </div>
+      )}
 
       {visible.map((m) => (
         <div key={m.key} className="rounded-2xl border border-border bg-surface p-4">
