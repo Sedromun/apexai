@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{1FAB2AD1-7734-4756-B36D-FC3ECD8B827B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexAI.Telemetry", "src\ApexAI.Telemetry\ApexAI.Telemetry.csproj", "{A06DFE3A-0CFD-4192-83C1-B1D98D9F9E3C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexAI.Core", "src\ApexAI.Core\ApexAI.Core.csproj", "{B4EA782D-B27D-4ACA-B2E3-F83F66C4FFD5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexAI.Cli", "src\ApexAI.Cli\ApexAI.Cli.csproj", "{45D7223C-E4A9-4516-B77C-9B9C15009A7C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexAI.App", "src\ApexAI.App\ApexAI.App.csproj", "{7EBAB81B-1D1D-4B41-A4AA-B5050AE951DB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{593B5503-1146-404D-9E90-A01768987521}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexAI.Telemetry.Tests", "tests\ApexAI.Telemetry.Tests\ApexAI.Telemetry.Tests.csproj", "{76A20D89-4523-4DB9-8E70-51394AD441E7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A06DFE3A-0CFD-4192-83C1-B1D98D9F9E3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A06DFE3A-0CFD-4192-83C1-B1D98D9F9E3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A06DFE3A-0CFD-4192-83C1-B1D98D9F9E3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A06DFE3A-0CFD-4192-83C1-B1D98D9F9E3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4EA782D-B27D-4ACA-B2E3-F83F66C4FFD5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4EA782D-B27D-4ACA-B2E3-F83F66C4FFD5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4EA782D-B27D-4ACA-B2E3-F83F66C4FFD5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4EA782D-B27D-4ACA-B2E3-F83F66C4FFD5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45D7223C-E4A9-4516-B77C-9B9C15009A7C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45D7223C-E4A9-4516-B77C-9B9C15009A7C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45D7223C-E4A9-4516-B77C-9B9C15009A7C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45D7223C-E4A9-4516-B77C-9B9C15009A7C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7EBAB81B-1D1D-4B41-A4AA-B5050AE951DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7EBAB81B-1D1D-4B41-A4AA-B5050AE951DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7EBAB81B-1D1D-4B41-A4AA-B5050AE951DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7EBAB81B-1D1D-4B41-A4AA-B5050AE951DB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{76A20D89-4523-4DB9-8E70-51394AD441E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{76A20D89-4523-4DB9-8E70-51394AD441E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{76A20D89-4523-4DB9-8E70-51394AD441E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{76A20D89-4523-4DB9-8E70-51394AD441E7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A06DFE3A-0CFD-4192-83C1-B1D98D9F9E3C} = {1FAB2AD1-7734-4756-B36D-FC3ECD8B827B}
+		{B4EA782D-B27D-4ACA-B2E3-F83F66C4FFD5} = {1FAB2AD1-7734-4756-B36D-FC3ECD8B827B}
+		{45D7223C-E4A9-4516-B77C-9B9C15009A7C} = {1FAB2AD1-7734-4756-B36D-FC3ECD8B827B}
+		{7EBAB81B-1D1D-4B41-A4AA-B5050AE951DB} = {1FAB2AD1-7734-4756-B36D-FC3ECD8B827B}
+		{76A20D89-4523-4DB9-8E70-51394AD441E7} = {593B5503-1146-404D-9E90-A01768987521}
+	EndGlobalSection
+EndGlobal

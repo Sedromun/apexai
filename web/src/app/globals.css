@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Monaco design system — dark cockpit base, racing-red accent, telemetry channel colors. */
+@theme {
+  --color-background: #0a0c0f;
+  --color-surface: #111419;
+  --color-surface-2: #161a20;
+  --color-elevated: #1b2029;
+  --color-border: #20262f;
+  --color-foreground: #e7e9ee;
+  --color-muted: #8a929e;
+  --color-primary: #ff2d46;
+  --color-primary-foreground: #ffffff;
+  --color-positive: #3ddc84;
+  --color-negative: #ff2d46;
+
+  /* Telemetry channels */
+  --color-speed: #f4f6fb;
+  --color-throttle: #3ddc84;
+  --color-brake: #ff2d46;
+  --color-steer: #8b7bff;
+  --color-gear: #f5a524;
+  --color-delta: #ff2d46;
+  --color-ghost: #5a626e;
+
+  --font-sans: var(--font-golos);
+  --font-display: var(--font-oswald);
+  --font-mono: var(--font-jetbrains);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-golos), system-ui, sans-serif;
+}
+
+/* Condensed display type for headings + lap times. */
+.font-display {
+  font-family: var(--font-oswald), system-ui, sans-serif;
+}
+
+/* uPlot dark theme */
+.uplot,
+.uplot * {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+}
+.u-legend {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.u-legend .u-marker {
+  width: 9px;
+  height: 9px;
+}

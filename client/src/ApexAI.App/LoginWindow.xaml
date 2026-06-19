@@ -1,0 +1,19 @@
+<Window x:Class="ApexAI.App.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ApexAI — вход" Height="280" Width="360"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+    <StackPanel Margin="24">
+        <TextBlock Text="ApexAI" FontSize="22" FontWeight="Bold" />
+        <TextBlock Text="Вход в аккаунт" Foreground="Gray" Margin="0,0,0,16" />
+
+        <TextBlock Text="Email" Margin="0,0,0,2" />
+        <TextBox x:Name="EmailBox" Padding="4" />
+
+        <TextBlock Text="Пароль" Margin="0,10,0,2" />
+        <PasswordBox x:Name="PasswordBox" Padding="4" />
+
+        <TextBlock x:Name="ErrorText" Foreground="#D32F2F" TextWrapping="Wrap" Margin="0,8,0,0" />
+        <Button x:Name="LoginButton" Content="Войти" Click="OnLogin" Padding="0,8" Margin="0,16,0,0" />
+    </StackPanel>
+</Window>

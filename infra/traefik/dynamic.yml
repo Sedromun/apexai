@@ -1,0 +1,36 @@
+# Traefik dynamic config (file provider). Avoids the Docker-socket provider, which is
+# incompatible with Docker 29's minimum API version. Services are reached by their
+# compose service names over the shared `apexnet` network (Docker embedded DNS).
+http:
+  routers:
+    apexai-web:
+      rule: "Host(`apex-ai.clique-vpn.ru`)"
+      entryPoints: [websecure]
+      service: apexai-web
+      priority: 1
+      tls:
+        certResolver: le
+
+    apexai-backend:
+      rule: "Host(`apex-ai.clique-vpn.ru`) && PathPrefix(`/papi`)"
+      entryPoints: [websecure]
+      service: apexai-backend
+      priority: 100
+      middlewares: [apexai-strip]
+      tls:
+        certResolver: le
+
+  middlewares:
+    apexai-strip:
+      stripPrefix:
+        prefixes: ["/papi"]
+
+  services:
+    apexai-web:
+      loadBalancer:
+        servers:
+          - url: "http://web:3000"
+    apexai-backend:
+      loadBalancer:
+        servers:
+          - url: "http://backend:8000"

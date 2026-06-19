@@ -1,0 +1,16 @@
+# Runtime dependencies (installed in Docker on Python 3.12).
+# Floors only, no tight upper caps, so the image always resolves the latest compatible release.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30
+alembic>=1.14
+pydantic>=2.10,<3
+pydantic-settings>=2.7,<3
+email-validator>=2.2
+argon2-cffi>=23.1
+pyjwt>=2.10,<3
+python-multipart>=0.0.19
+boto3>=1.35
+anyio>=4.6
+httpx>=0.28

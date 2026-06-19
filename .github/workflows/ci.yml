@@ -1,0 +1,67 @@
+name: CI
+
+# Runs on every push/PR to main, and is reused by the release workflow
+# (so a tag never deploys code that hasn't passed the same gate).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+jobs:
+  backend:
+    name: Backend · pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Install deps
+        working-directory: backend
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests
+        working-directory: backend
+        # Tests use in-memory SQLite + in-memory object store — no services needed.
+        run: pytest -q
+
+  web:
+    name: Web · lint + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install deps
+        working-directory: web
+        run: npm ci
+      - name: Lint
+        working-directory: web
+        run: npm run lint
+      - name: Build
+        working-directory: web
+        env:
+          NEXT_PUBLIC_API_BASE: https://apex-ai.clique-vpn.ru/papi
+        run: npm run build
+
+  client:
+    name: Client · dotnet test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Test telemetry parser
+        working-directory: client
+        # Only the cross-platform test project (it pulls in Core + Telemetry).
+        # ApexAI.App is net8.0-windows (WPF) and must not be built on Linux.
+        run: dotnet test tests/ApexAI.Telemetry.Tests/ApexAI.Telemetry.Tests.csproj -c Release

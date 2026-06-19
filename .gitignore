@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.sqlite3
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Build artifacts
+dist/
+build/
+
+# C# / .NET
+[Bb]in/
+[Oo]bj/
+*.user
+
+# Published binaries / deploy artifacts (built in CI, attached to Releases)
+client/publish/
+*.exe
+
+# Local tooling
+.claude/

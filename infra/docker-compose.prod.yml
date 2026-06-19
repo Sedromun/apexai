@@ -1,0 +1,128 @@
+# Production stack behind Traefik with Let's Encrypt TLS.
+#   cd /opt/apexai && docker compose -f infra/docker-compose.prod.yml --env-file .env up -d --build
+#
+# Routing on https://${DOMAIN}:
+#   /papi/*  → backend (prefix stripped → /auth, /laps, …)   [same-origin, so no CORS in prod]
+#   /*       → web (Next.js standalone; its BFF auth lives at /api/auth/*)
+name: apexai-prod
+
+services:
+  traefik:
+    image: traefik:v3.3
+    restart: unless-stopped
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/acme/acme.json
+      - --log.level=INFO
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik:/etc/traefik/dynamic:ro
+      - traefik_acme:/acme
+    networks: [apexnet]
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: apexai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: apexai
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [apexnet]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apexai -d apexai"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  minio:
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - miniodata:/data
+    networks: [apexnet]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [apexnet]
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://apexai:${POSTGRES_PASSWORD}@db:5432/apexai
+      JWT_SECRET: ${JWT_SECRET}
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: apexai-traces
+      S3_USE_PATH_STYLE: "true"
+      CORS_ORIGINS: https://${DOMAIN}
+      BILLING_WEBHOOK_SECRET: ${BILLING_WEBHOOK_SECRET}
+      PUBLIC_BASE_URL: https://${DOMAIN}/papi
+      WEB_BASE_URL: https://${DOMAIN}
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks: [apexnet]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=apexnet
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/papi`)"
+      - traefik.http.routers.backend.entrypoints=websecure
+      - traefik.http.routers.backend.tls.certresolver=le
+      - traefik.http.routers.backend.priority=100
+      - traefik.http.routers.backend.middlewares=backend-strip
+      - traefik.http.middlewares.backend-strip.stripprefix.prefixes=/papi
+      - traefik.http.services.backend.loadbalancer.server.port=8000
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE: https://${DOMAIN}/papi
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_BASE: http://backend:8000
+    depends_on:
+      - backend
+    networks: [apexnet]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=apexnet
+      - "traefik.http.routers.web.rule=Host(`${DOMAIN}`)"
+      - traefik.http.routers.web.entrypoints=websecure
+      - traefik.http.routers.web.tls.certresolver=le
+      - traefik.http.routers.web.priority=1
+      - traefik.http.services.web.loadbalancer.server.port=3000
+
+networks:
+  apexnet:
+    name: apexnet
+
+volumes:
+  pgdata:
+  miniodata:
+  traefik_acme:

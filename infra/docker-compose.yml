@@ -1,0 +1,74 @@
+# Local development stack for ApexAI.
+#   docker compose -f infra/docker-compose.yml up --build
+# Brings up PostgreSQL, MinIO (S3), Redis (reserved for the metrics/coach queue), and the
+# API. The API container applies migrations on start, then serves with autoreload.
+name: apexai
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: apexai
+      POSTGRES_PASSWORD: apexai
+      POSTGRES_DB: apexai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apexai -d apexai"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: apexai
+      MINIO_ROOT_PASSWORD: apexai-secret
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # web console
+    volumes:
+      - miniodata:/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ../backend
+      args:
+        INSTALL_DEV: "true"
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://apexai:apexai@db:5432/apexai
+      JWT_SECRET: dev-insecure-secret-change-me-please-0123456789
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: apexai
+      S3_SECRET_KEY: apexai-secret
+      S3_BUCKET: apexai-traces
+      S3_USE_PATH_STYLE: "true"
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    ports:
+      - "8000:8000"
+      - "8010:8000"
+    volumes:
+      - ../backend:/app
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  pgdata:
+  miniodata:
