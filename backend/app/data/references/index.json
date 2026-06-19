@@ -169,11 +169,13 @@
  },
  "Zandvoort": {
   "slug": "zandvoort",
-  "lap_time_ms": 71097,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 335.8
+  "lap_time_ms": 67756,
+  "kind": "real",
+  "label": "Реальный круг — TROLINESCO (F1 25)",
+  "driver": "TROLINESCO",
+  "source": "racenet",
+  "samples": 269,
+  "max_speed_kmh": 316.8
  },
  "Imola": {
   "slug": "imola",

@@ -22,7 +22,7 @@ def test_every_reference_trace_is_valid_and_calibrated():
         assert isinstance(trace, LapTrace)
         trace.validate()  # raises on a malformed/short trace
         meta = track_catalog.reference_meta(name)
-        assert meta["kind"] == "modeled"
+        assert meta["kind"] in ("modeled", "real")
         assert meta["lap_time_ms"] > 10_000
         assert trace.channels["lap_dist_m"][-1] > 1000
         assert max(trace.channels["speed_kmh"]) < 400
