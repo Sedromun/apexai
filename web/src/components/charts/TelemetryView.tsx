@@ -79,13 +79,16 @@ export function TelemetryView({
   trace,
   reference,
   compare,
+  onHoverDist,
 }: {
   trace: LapTrace;
   reference?: LapTrace | null;
   compare?: CompareDelta | null;
+  onHoverDist?: (d: number | null) => void;
 }) {
   const [hidden, setHidden] = useState<Set<ChannelKey>>(new Set());
   const [showRef, setShowRef] = useState(true);
+  const [xRange, setXRange] = useState<[number, number] | null>(null);
 
   const charts = useMemo(() => {
     const x = trace.channels.lap_dist_m;
@@ -195,9 +198,21 @@ export function TelemetryView({
               </span>
             )}
           </div>
-          <UplotChart data={charts[m.key].data} options={charts[m.key].options} height={m.height} />
+          <UplotChart
+            data={charts[m.key].data}
+            options={charts[m.key].options}
+            height={m.height}
+            onHover={onHoverDist}
+            onZoom={setXRange}
+            xRange={xRange}
+          />
         </div>
       ))}
+      {(reference || compare) && (
+        <p className="px-1 text-[11px] text-muted">
+          Потяни по графику, чтобы приблизить · двойной клик — сброс · наведи — точка на карте
+        </p>
+      )}
     </div>
   );
 }

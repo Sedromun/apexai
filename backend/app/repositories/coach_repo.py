@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -38,6 +39,33 @@ class CoachReportRepository:
             .where(RaceSession.user_id == user_id)
         )
         return int(result.scalar_one())
+
+    async def get_previous_for_track(
+        self,
+        user_id: uuid.UUID,
+        game: str,
+        track: str | None,
+        before_recorded_at: datetime,
+        exclude_lap_id: uuid.UUID,
+    ) -> CoachReport | None:
+        """Most recent prior coach report for this user on the same game+track — the previous
+        'lesson', used to review the homework and build a learning progression."""
+        stmt = (
+            select(CoachReport)
+            .join(Lap, CoachReport.lap_id == Lap.id)
+            .join(RaceSession, Lap.session_id == RaceSession.id)
+            .where(
+                RaceSession.user_id == user_id,
+                RaceSession.game == game,
+                RaceSession.track.is_(None) if track is None else RaceSession.track == track,
+                Lap.id != exclude_lap_id,
+                Lap.recorded_at < before_recorded_at,
+            )
+            .order_by(Lap.recorded_at.desc())
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def create(
         self, *, lap_id: uuid.UUID, summary: dict[str, Any], body: str, model: str

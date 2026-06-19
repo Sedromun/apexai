@@ -74,6 +74,7 @@ export default function LapPage() {
   const { data: trace, isLoading: traceLoading } = useLapTrace(lapId);
 
   const [refSource, setRefSource] = useState<"track" | "best">("track");
+  const [hoverDist, setHoverDist] = useState<number | null>(null);
 
   const bestId = lap?.reference_lap_id ?? undefined;
   const trackName = lap?.track ?? undefined;
@@ -209,7 +210,12 @@ export default function LapPage() {
       {/* Telemetry + track map */}
       <div className="grid gap-5 md:grid-cols-3">
         <div className="md:col-span-2">
-          <TelemetryView trace={trace} reference={referenceTrace} compare={compareView} />
+          <TelemetryView
+            trace={trace}
+            reference={referenceTrace}
+            compare={compareView}
+            onHoverDist={setHoverDist}
+          />
         </div>
 
         <div className="space-y-4">
@@ -222,7 +228,14 @@ export default function LapPage() {
                 </span>
               )}
             </div>
-            <TrackMap map={track?.map} />
+            <TrackMap
+              map={track?.map}
+              markerFrac={
+                hoverDist != null
+                  ? hoverDist / (track?.length_m ?? trace.channels.lap_dist_m.at(-1) ?? 1)
+                  : null
+              }
+            />
             {compareView && (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {sectors(compareView.delta_s).map((s) => (

@@ -13,6 +13,7 @@ def build_coach_payload(
     car: str | None,
     metrics: dict[str, Any],
     delta: dict[str, Any] | None,
+    previous: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     summary = metrics.get("summary", {})
     compact_corners = [
@@ -38,6 +39,10 @@ def build_coach_payload(
             reverse=True,
         )[:3]
 
+    corner_deltas: dict[str, float] = {}
+    if delta:
+        corner_deltas = {str(c["number"]): round(c["delta_s"], 3) for c in delta.get("corners", [])}
+
     return {
         "track": track,
         "car": car,
@@ -46,6 +51,8 @@ def build_coach_payload(
         "summary": summary,
         "corners": compact_corners,
         "biggest_losses": biggest_losses,
+        "corner_deltas": corner_deltas,
+        "previous": previous,  # prior lesson on this track: {lap_time_s, focus_points, corner_deltas}
     }
 
 
@@ -64,3 +71,7 @@ def validate_result(result: CoachResult, payload: dict[str, Any]) -> None:
         loss = mistake.get("time_loss_s")
         if loss is not None and (loss < 0 or loss > ceiling):
             raise CoachValidationError(f"implausible time_loss_s={loss}")
+    for fp in result.focus_points:
+        corner = fp.get("corner")
+        if corner is not None and corner not in corner_numbers:
+            raise CoachValidationError(f"focus_point references unknown corner {corner}")

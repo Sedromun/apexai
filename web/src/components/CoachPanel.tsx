@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/cn";
 import { useAnalyzeLap, useCoachReport } from "@/lib/queries";
 import { Button } from "./ui/Button";
 import { Card, CardTitle } from "./ui/Card";
@@ -40,9 +41,63 @@ export function CoachPanel({ lapId }: { lapId: string }) {
         </div>
         <p className="text-sm">{s.summary_text}</p>
 
+        {s.review && (
+          <div
+            className={cn(
+              "rounded-lg border p-3",
+              s.review.verdict === "good"
+                ? "border-positive/40 bg-positive/5"
+                : "border-primary/30 bg-primary/5",
+            )}
+          >
+            <div className="mb-1 flex items-center gap-2 text-xs font-semibold">
+              <span>📋 Проверка прошлого задания</span>
+              <span
+                className={cn(
+                  "ml-auto rounded-full px-2 py-0.5 text-[10px]",
+                  s.review.verdict === "good"
+                    ? "bg-positive/20 text-positive"
+                    : "bg-primary/20 text-primary",
+                )}
+              >
+                {s.review.verdict === "good" ? "Прогресс!" : "Ещё поработай"}
+              </span>
+            </div>
+            {s.review.text && <p className="text-sm">{s.review.text}</p>}
+            {s.review.items.length > 0 && (
+              <ul className="mt-2 space-y-1 text-sm">
+                {s.review.items.map((it, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span>{it.improved === true ? "✅" : it.improved === false ? "🔸" : "•"}</span>
+                    <span className={it.improved === true ? "text-positive" : "text-foreground"}>
+                      {it.note}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {s.focus_points && s.focus_points.length > 0 && (
+          <div className="rounded-lg border border-[#22d3ee]/40 bg-[#22d3ee]/5 p-3">
+            <div className="mb-1.5 text-xs font-semibold text-[#22d3ee]">
+              🎯 Задание на эту сессию
+            </div>
+            <ul className="space-y-2">
+              {s.focus_points.map((fp, i) => (
+                <li key={i} className="text-sm">
+                  <span className="font-medium">{fp.title}</span>{" "}
+                  <span className="text-muted">— {fp.target}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {s.top_mistakes.length > 0 && (
           <div>
-            <div className="mb-1 text-xs font-semibold text-muted">Три главные ошибки</div>
+            <div className="mb-1 text-xs font-semibold text-muted">Где теряешь время</div>
             <ol className="space-y-2">
               {s.top_mistakes.map((m, i) => (
                 <li key={i} className="rounded-md border border-border bg-surface-2 p-3 text-sm">

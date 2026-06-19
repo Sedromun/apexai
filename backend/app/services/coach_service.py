@@ -13,6 +13,7 @@ from app.models.coach_report import CoachReport
 from app.models.user import User
 from app.repositories.coach_repo import CoachReportRepository
 from app.repositories.lap_repo import LapRepository
+from app.services import track_catalog
 from app.storage.object_store import ObjectStore
 from app.telemetry.compare import compute_delta
 from app.telemetry.metrics import compute_lap_metrics
@@ -52,11 +53,19 @@ class CoachService:
             metrics = compute_lap_metrics(self_trace)
 
         delta = await self._delta_to_reference(user, lap, self_trace)
+        previous = await self._previous_lesson(user, lap)
         payload = build_coach_payload(
-            track=lap.session.track, car=lap.session.car_or_team, metrics=metrics, delta=delta
+            track=lap.session.track,
+            car=lap.session.car_or_team,
+            metrics=metrics,
+            delta=delta,
+            previous=previous,
         )
 
         result = await self._generate(payload)
+        # Carry the computed data so the next lap's review can compare against this one.
+        result.corner_deltas = payload.get("corner_deltas", {})
+        result.lap_time_s = payload.get("lap_time_s")
         report = await self.reports.create(
             lap_id=lap.id,
             summary=result.to_dict(),
@@ -92,6 +101,11 @@ class CoachService:
             )
 
     async def _delta_to_reference(self, user, lap, self_trace: LapTrace):
+        # Prefer the stable track эталон (modeled/real ideal lap): its per-corner deltas are
+        # comparable across sessions, so progress is measurable. Fall back to the user's best lap.
+        track_ref = track_catalog.reference_trace(lap.session.track) if lap.session.track else None
+        if track_ref is not None:
+            return compute_delta(self_trace, track_ref)
         reference = await self.laps.get_best_lap_for_track(
             user.id, lap.session.game, lap.session.track, exclude_lap_id=lap.id
         )
@@ -99,6 +113,20 @@ class CoachService:
             return None
         ref_trace = LapTrace.from_gzip(await self.store.get(reference.trace.storage_key))
         return compute_delta(self_trace, ref_trace)
+
+    async def _previous_lesson(self, user: User, lap) -> dict | None:
+        """The prior coach report on this track, distilled into review context for the next lesson."""
+        prev = await self.reports.get_previous_for_track(
+            user.id, lap.session.game, lap.session.track, lap.recorded_at, lap.id
+        )
+        if prev is None:
+            return None
+        s = prev.summary or {}
+        return {
+            "lap_time_s": s.get("lap_time_s"),
+            "focus_points": s.get("focus_points", []),
+            "corner_deltas": s.get("corner_deltas", {}),
+        }
 
     async def _generate(self, payload) -> CoachResult:
         try:

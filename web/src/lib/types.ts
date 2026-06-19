@@ -138,11 +138,33 @@ export interface CoachMistake {
   time_loss_s: number | null;
 }
 
+export interface CoachFocusPoint {
+  corner: number;
+  title: string;
+  target: string;
+}
+
+export interface CoachReviewItem {
+  corner: number;
+  before_s: number | null;
+  after_s: number | null;
+  improved: boolean | null;
+  note: string;
+}
+
+export interface CoachReview {
+  text: string;
+  verdict: "good" | "keep";
+  items: CoachReviewItem[];
+}
+
 export interface CoachSummary {
   summary_text: string;
   top_mistakes: CoachMistake[];
   corner_notes: { corner: number; note: string }[];
   training_plan: string[];
+  focus_points?: CoachFocusPoint[];
+  review?: CoachReview | null;
 }
 
 export interface CoachReport {
