@@ -18,9 +18,9 @@ METRICS_SCHEMA = "lap-metrics/1"
 
 # Tuning constants for corner detection.
 _SMOOTH_WINDOW = 13  # samples (~0.2 s @ 60 Hz)
-_CORNER_SPEED_FRACTION = 0.90  # speed below this fraction of lap max => inside a corner
+_CORNER_PROMINENCE_KMH = 10.0  # min speed-dip (vs surrounding peaks) for a real corner
 _ENTRY_EXIT_LOOKAROUND_M = 300.0  # search window for entry/exit speed maxima
-_MERGE_GAP_M = 180.0  # merge apexes closer than this
+_MERGE_GAP_M = 40.0  # merge apexes closer than this (one corner detected twice)
 _BRAKE_ON = 0.10
 _THROTTLE_FULL = 0.90
 _STEER_ENGAGED = 0.10
@@ -58,9 +58,33 @@ def _count_reversals(steer: list[float], lo: int, hi: int) -> int:
     return count
 
 
+def _speed_minima(smooth: list[float]) -> list[int]:
+    """Indices of prominent local speed minima — one per corner.
+
+    A genuine corner is a dip flanked by faster sections. Prominence (how far speed
+    climbs on the *shallower* side before the next dip) separates real corners from
+    straight-line wiggles and, unlike a global speed threshold, also catches fast
+    corners and keeps adjacent corners distinct on twisty tracks.
+    """
+    n = len(smooth)
+    cand: list[int] = []
+    for i in range(1, n - 1):
+        if smooth[i] <= smooth[i - 1] and smooth[i] < smooth[i + 1]:
+            cand.append(i)
+    kept: list[int] = []
+    for idx, m in enumerate(cand):
+        left = cand[idx - 1] if idx > 0 else 0
+        right = cand[idx + 1] if idx + 1 < len(cand) else n - 1
+        left_peak = max(smooth[left : m + 1])
+        right_peak = max(smooth[m : right + 1])
+        if min(left_peak, right_peak) - smooth[m] >= _CORNER_PROMINENCE_KMH:
+            kept.append(m)
+    return kept
+
+
 def segment_corners(trace: LapTrace) -> list[dict[str, Any]]:
-    """Detect corners as contiguous regions where (smoothed) speed dips below a fraction
-    of the lap's maximum. For each, find entry/apex/exit and per-corner metrics."""
+    """Detect corners as prominent local minima of (smoothed) speed, then compute
+    entry/apex/exit and per-corner metrics for each."""
     ch = trace.channels
     speed = ch["speed_kmh"]
     dist = ch["lap_dist_m"]
@@ -73,30 +97,16 @@ def segment_corners(trace: LapTrace) -> list[dict[str, Any]]:
         return []
 
     smooth = _moving_average(speed, _SMOOTH_WINDOW)
-    threshold = max(smooth) * _CORNER_SPEED_FRACTION
-
-    # Contiguous below-threshold regions => corner zones.
-    regions: list[tuple[int, int]] = []
-    i = 0
-    while i < n:
-        if smooth[i] < threshold:
-            j = i
-            while j < n and smooth[j] < threshold:
-                j += 1
-            regions.append((i, j - 1))
-            i = j
-        else:
-            i += 1
 
     corners: list[dict[str, Any]] = []
-    for start, end in regions:
-        apex = min(range(start, end + 1), key=lambda k: speed[k])
+    for m in _speed_minima(smooth):
+        apex_d = dist[m]
+        lo = max(0, min(bisect.bisect_left(dist, apex_d - _ENTRY_EXIT_LOOKAROUND_M), m))
+        hi = min(n - 1, max(bisect.bisect_right(dist, apex_d + _ENTRY_EXIT_LOOKAROUND_M) - 1, m))
+        entry = max(range(lo, m + 1), key=lambda k: speed[k])
+        exit_ = max(range(m, hi + 1), key=lambda k: speed[k])
+        apex = min(range(entry, exit_ + 1), key=lambda k: speed[k])
         apex_d = dist[apex]
-
-        lo = max(0, min(bisect.bisect_left(dist, apex_d - _ENTRY_EXIT_LOOKAROUND_M), apex))
-        hi = min(n - 1, max(bisect.bisect_right(dist, apex_d + _ENTRY_EXIT_LOOKAROUND_M) - 1, apex))
-        entry = max(range(lo, apex + 1), key=lambda k: speed[k])
-        exit_ = max(range(apex, hi + 1), key=lambda k: speed[k])
 
         brake_point = next((k for k in range(entry, apex + 1) if brake[k] > _BRAKE_ON), entry)
         throttle_point = next(
@@ -109,7 +119,7 @@ def segment_corners(trace: LapTrace) -> list[dict[str, Any]]:
                 trail_brake_m += dist[k + 1] - dist[k]
 
         peak_brake = max(brake[entry : apex + 1], default=0.0)
-        direction = "right" if sum(steer[start : end + 1]) >= 0 else "left"
+        direction = "right" if sum(steer[entry : exit_ + 1]) >= 0 else "left"
 
         corners.append(
             {

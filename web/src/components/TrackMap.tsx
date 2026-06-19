@@ -1,52 +1,42 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import type { TrackMapGeo } from "@/lib/types";
 
-// A stylized closed racing line (original, not a real circuit). When the trace carries world
-// position channels (real F1 data), this can be replaced with the actual path; for now it is a
-// representative loop with start (green) and current-position (white) markers.
-const LOOP =
-  "M44 128 C 30 78, 86 44, 138 54 C 188 64, 196 36, 240 54 C 286 72, 292 120, 256 150 " +
-  "C 214 186, 150 196, 116 172 C 84 150, 58 168, 44 128 Z";
-
-export function TrackMap({ progress = 0.58 }: { progress?: number }) {
-  const pathRef = useRef<SVGPathElement>(null);
-  const [points, setPoints] = useState<{ start: DOMPoint; car: DOMPoint } | null>(null);
-
-  useEffect(() => {
-    const path = pathRef.current;
-    if (!path) return;
-    const length = path.getTotalLength();
-    setPoints({ start: path.getPointAtLength(0), car: path.getPointAtLength(length * progress) });
-  }, [progress]);
+/** Real circuit outline (normalized SVG path from bacinger/f1-circuits, MIT). */
+export function TrackMap({ map }: { map?: TrackMapGeo | null }) {
+  if (!map) {
+    return (
+      <div className="flex h-44 items-center justify-center rounded-xl border border-border bg-surface-2 px-4 text-center text-xs text-muted">
+        Карта для этой трассы пока недоступна
+      </div>
+    );
+  }
 
   return (
-    <svg viewBox="0 0 320 220" className="w-full">
+    <svg viewBox={map.view_box} className="w-full" style={{ maxHeight: 300 }} role="img" aria-label="Карта трассы">
       <defs>
-        <filter id="trackglow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="3.5" result="b" />
+        <filter id="trackglow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="7" result="b" />
           <feMerge>
             <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
       </defs>
+      {/* tarmac underlay */}
+      <path d={map.path} fill="none" stroke="#2a3038" strokeWidth="16" strokeLinejoin="round" strokeLinecap="round" />
+      {/* racing line */}
       <path
-        ref={pathRef}
-        d={LOOP}
+        d={map.path}
         fill="none"
         stroke="#ff2d46"
-        strokeWidth="3.5"
-        strokeLinecap="round"
+        strokeWidth="6"
         strokeLinejoin="round"
+        strokeLinecap="round"
         filter="url(#trackglow)"
       />
-      {points && (
-        <>
-          <circle cx={points.start.x} cy={points.start.y} r="5" fill="#3ddc84" />
-          <circle cx={points.car.x} cy={points.car.y} r="5.5" fill="#fff" />
-        </>
-      )}
+      {/* start / finish */}
+      <circle cx={map.start.x} cy={map.start.y} r="13" fill="#3ddc84" stroke="#0a0c0f" strokeWidth="3" />
     </svg>
   );
 }

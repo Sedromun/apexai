@@ -4,8 +4,11 @@ import uPlot from "uplot";
 import { useMemo, useState } from "react";
 import { Chip } from "@/components/ui/Chip";
 import { resampleByDistance } from "@/lib/resample";
-import type { LapCompare, LapTrace } from "@/lib/types";
+import type { LapTrace } from "@/lib/types";
 import { UplotChart } from "./UplotChart";
+
+/** Minimal shape for the delta chart — satisfied by both LapCompare and ReferenceCompare. */
+type CompareDelta = { distance_m: number[]; delta_s: number[] };
 
 const C = {
   speed: "#f4f6fb",
@@ -79,7 +82,7 @@ export function TelemetryView({
 }: {
   trace: LapTrace;
   reference?: LapTrace | null;
-  compare?: LapCompare | null;
+  compare?: CompareDelta | null;
 }) {
   const [hidden, setHidden] = useState<Set<ChannelKey>>(new Set());
   const [showRef, setShowRef] = useState(true);

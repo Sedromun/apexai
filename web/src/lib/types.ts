@@ -106,6 +106,7 @@ export interface LapDetail {
   metrics: LapMetrics | null;
   trace: TraceMeta | null;
   reference_lap_id: string | null;
+  track_reference: TrackReferenceMeta | null;
 }
 
 export interface LapTrace {
@@ -159,4 +160,49 @@ export interface Plan {
   price_rub: number;
   period: string | null;
   features: string[];
+}
+
+export interface TrackCorner {
+  n: number;
+  name: string;
+}
+
+export interface TrackMapGeo {
+  view_box: string;
+  path: string;
+  start: { x: number; y: number };
+}
+
+export interface TrackReferenceMeta {
+  label: string;
+  kind: string;
+  lap_time_ms: number;
+  max_speed_kmh: number;
+}
+
+export interface TrackInfo {
+  name: string;
+  length_m: number | null;
+  drs_zones: number | null;
+  record: string | null;
+  corner_count: number;
+  corners: TrackCorner[];
+  map: TrackMapGeo | null;
+  reference: TrackReferenceMeta | null;
+}
+
+export interface TrackReferenceResponse {
+  trace: LapTrace;
+  meta: TrackReferenceMeta & { slug: string; samples: number };
+}
+
+export interface ReferenceCompare {
+  track: string;
+  reference_label: string;
+  reference_lap_time_ms: number;
+  self_lap_time_ms: number;
+  distance_m: number[];
+  delta_s: number[];
+  total_delta_s: number;
+  corners: CompareCorner[];
 }

@@ -2,17 +2,28 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { TelemetryView } from "@/components/charts/TelemetryView";
 import { CoachPanel } from "@/components/CoachPanel";
 import { CornersTable } from "@/components/CornersTable";
 import { TrackMap } from "@/components/TrackMap";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { Chip } from "@/components/ui/Chip";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/lib/cn";
 import { fmtLapTime } from "@/lib/format";
-import { useCompare, useLap, useLapTrace } from "@/lib/queries";
-import type { LapCompare } from "@/lib/types";
+import {
+  useCompare,
+  useLap,
+  useLapTrace,
+  useReferenceCompare,
+  useTrack,
+  useTrackReference,
+} from "@/lib/queries";
+import type { CompareCorner } from "@/lib/types";
+
+const REFERENCE_COLOR = "#22d3ee";
 
 function SummaryChip({
   label,
@@ -46,14 +57,13 @@ function SummaryChip({
   );
 }
 
-function sectors(compare: LapCompare): { label: string; delta: number }[] {
-  const d = compare.delta_s;
-  const n = d.length;
+function sectors(deltaS: number[]): { label: string; delta: number }[] {
+  const n = deltaS.length;
   if (n < 4) return [];
   const bounds = [0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1];
   return [0, 1, 2].map((i) => ({
     label: `S${i + 1}`,
-    delta: Number((d[bounds[i + 1]] - d[bounds[i]]).toFixed(2)),
+    delta: Number((deltaS[bounds[i + 1]] - deltaS[bounds[i]]).toFixed(2)),
   }));
 }
 
@@ -62,17 +72,77 @@ export default function LapPage() {
 
   const { data: lap, isLoading: lapLoading, error } = useLap(lapId);
   const { data: trace, isLoading: traceLoading } = useLapTrace(lapId);
-  const referenceId = lap?.reference_lap_id ?? undefined;
-  const { data: referenceTrace } = useLapTrace(referenceId);
-  const { data: compare } = useCompare(lapId, referenceId);
+
+  const [refSource, setRefSource] = useState<"track" | "best">("track");
+
+  const bestId = lap?.reference_lap_id ?? undefined;
+  const trackName = lap?.track ?? undefined;
+  const hasBest = Boolean(bestId);
+  const hasTrackRef = Boolean(lap?.track_reference);
+
+  // Effective source: honour the toggle, but fall back to whatever is available.
+  const source: "track" | "best" | "none" =
+    refSource === "track"
+      ? hasTrackRef
+        ? "track"
+        : hasBest
+          ? "best"
+          : "none"
+      : hasBest
+        ? "best"
+        : hasTrackRef
+          ? "track"
+          : "none";
+
+  const { data: bestTrace } = useLapTrace(source === "best" ? bestId : undefined);
+  const { data: bestCompare } = useCompare(
+    source === "best" ? lapId : undefined,
+    source === "best" ? bestId : undefined,
+  );
+  const { data: trackRef } = useTrackReference(source === "track" ? trackName : undefined);
+  const { data: trackCompare } = useReferenceCompare(source === "track" ? lapId : undefined);
+  const { data: track } = useTrack(trackName);
 
   if (lapLoading || traceLoading) return <Spinner label="Загрузка круга…" />;
   if (error || !lap || !trace)
     return <p className="text-sm text-negative">Не удалось загрузить круг.</p>;
 
+  const referenceTrace =
+    source === "track" ? (trackRef?.trace ?? null) : source === "best" ? (bestTrace ?? null) : null;
+
+  const compareView:
+    | {
+        distance_m: number[];
+        delta_s: number[];
+        total_delta_s: number;
+        corners: CompareCorner[];
+        refLabel: string;
+        refTimeMs: number;
+      }
+    | null =
+    source === "track" && trackCompare
+      ? {
+          distance_m: trackCompare.distance_m,
+          delta_s: trackCompare.delta_s,
+          total_delta_s: trackCompare.total_delta_s,
+          corners: trackCompare.corners,
+          refLabel: trackCompare.reference_label,
+          refTimeMs: trackCompare.reference_lap_time_ms,
+        }
+      : source === "best" && bestCompare
+        ? {
+            distance_m: bestCompare.distance_m,
+            delta_s: bestCompare.delta_s,
+            total_delta_s: bestCompare.total_delta_s,
+            corners: bestCompare.corners,
+            refLabel: "Мой лучший круг",
+            refTimeMs: bestCompare.b.lap_time_ms,
+          }
+        : null;
+
   const summary = lap.metrics?.summary;
   const distanceKm = summary ? (summary.distance_m / 1000).toFixed(2) : null;
-  const biggestLoss = compare?.corners
+  const biggestLoss = compareView?.corners
     .filter((c) => c.delta_s > 0)
     .sort((a, b) => b.delta_s - a.delta_s)[0];
 
@@ -97,13 +167,17 @@ export default function LapPage() {
       {/* Summary chips */}
       <div className="flex flex-wrap items-center gap-3">
         <SummaryChip label="Твой круг" value={fmtLapTime(lap.lap_time_ms)} dot="#f4f6fb" />
-        {compare && (
-          <SummaryChip label="Эталон" value={fmtLapTime(compare.b.lap_time_ms)} dot="#5a626e" />
+        {compareView && (
+          <SummaryChip
+            label={compareView.refLabel}
+            value={fmtLapTime(compareView.refTimeMs)}
+            dot={REFERENCE_COLOR}
+          />
         )}
-        {compare && (
+        {compareView && (
           <SummaryChip
             label="Дельта"
-            value={`${compare.total_delta_s > 0 ? "+" : ""}${compare.total_delta_s.toFixed(2)}`}
+            value={`${compareView.total_delta_s > 0 ? "+" : ""}${compareView.total_delta_s.toFixed(2)}`}
             accent
           />
         )}
@@ -115,10 +189,27 @@ export default function LapPage() {
         </a>
       </div>
 
+      {/* Reference source selector */}
+      {(hasTrackRef || hasBest) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">Сравнить с:</span>
+          {hasTrackRef && (
+            <Chip active={source === "track"} color={REFERENCE_COLOR} onClick={() => setRefSource("track")}>
+              Эталон трассы
+            </Chip>
+          )}
+          {hasBest && (
+            <Chip active={source === "best"} color={REFERENCE_COLOR} onClick={() => setRefSource("best")}>
+              Мой лучший круг
+            </Chip>
+          )}
+        </div>
+      )}
+
       {/* Telemetry + track map */}
       <div className="grid gap-5 md:grid-cols-3">
         <div className="md:col-span-2">
-          <TelemetryView trace={trace} reference={referenceTrace} compare={compare} />
+          <TelemetryView trace={trace} reference={referenceTrace} compare={compareView} />
         </div>
 
         <div className="space-y-4">
@@ -131,10 +222,10 @@ export default function LapPage() {
                 </span>
               )}
             </div>
-            <TrackMap />
-            {compare && (
+            <TrackMap map={track?.map} />
+            {compareView && (
               <div className="mt-3 grid grid-cols-3 gap-2">
-                {sectors(compare).map((s) => (
+                {sectors(compareView.delta_s).map((s) => (
                   <div key={s.label} className="rounded-xl border border-border bg-surface-2 p-2 text-center">
                     <div className="font-mono text-[11px] tracking-widest text-muted">{s.label}</div>
                     <div
@@ -181,10 +272,10 @@ export default function LapPage() {
         <CoachPanel lapId={lapId} />
       </div>
 
-      {lap.metrics && lap.metrics.corners.length > 0 && (
+      {((lap.metrics && lap.metrics.corners.length > 0) || track) && (
         <div>
           <h2 className="mb-2 font-display text-lg font-semibold">По поворотам</h2>
-          <CornersTable corners={lap.metrics.corners} />
+          <CornersTable corners={lap.metrics?.corners ?? []} track={track} />
         </div>
       )}
     </div>

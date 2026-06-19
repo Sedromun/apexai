@@ -10,7 +10,10 @@ import type {
   LapSummary,
   LapTrace,
   Plan,
+  ReferenceCompare,
   SessionSummary,
+  TrackInfo,
+  TrackReferenceResponse,
 } from "./types";
 
 export function useSessions() {
@@ -53,6 +56,30 @@ export function useCompare(a: string | undefined, b: string | undefined) {
     queryKey: ["compare", a, b],
     queryFn: () => apiFetch<LapCompare>(`/laps/compare?a=${a}&b=${b}`),
     enabled: Boolean(a) && Boolean(b),
+  });
+}
+
+export function useTrack(track: string | null | undefined) {
+  return useQuery({
+    queryKey: ["track", track],
+    queryFn: () => apiFetch<TrackInfo>(`/tracks/${encodeURIComponent(track!)}`),
+    enabled: Boolean(track),
+  });
+}
+
+export function useTrackReference(track: string | null | undefined) {
+  return useQuery({
+    queryKey: ["track-reference", track],
+    queryFn: () => apiFetch<TrackReferenceResponse>(`/tracks/${encodeURIComponent(track!)}/reference`),
+    enabled: Boolean(track),
+  });
+}
+
+export function useReferenceCompare(lapId: string | undefined) {
+  return useQuery({
+    queryKey: ["reference-compare", lapId],
+    queryFn: () => apiFetch<ReferenceCompare>(`/laps/${lapId}/reference-compare`),
+    enabled: Boolean(lapId),
   });
 }
 

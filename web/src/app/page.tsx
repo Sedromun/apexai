@@ -88,7 +88,15 @@ function ProductMock() {
         </div>
         <div className="rounded-2xl border border-border bg-surface p-3">
           <div className="mb-1 text-xs text-muted">Карта</div>
-          <TrackMap progress={0.62} />
+          <TrackMap
+            map={{
+              view_box: "0 0 320 220",
+              path:
+                "M44 128 C 30 78, 86 44, 138 54 C 188 64, 196 36, 240 54 C 286 72, 292 120, 256 150 " +
+                "C 214 186, 150 196, 116 172 C 84 150, 58 168, 44 128 Z",
+              start: { x: 44, y: 128 },
+            }}
+          />
         </div>
       </div>
     </div>
