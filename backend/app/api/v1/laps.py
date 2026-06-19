@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from app.core.deps import CurrentUser, LapServiceDep
 from app.core.errors import ValidationAppError, simplify_validation_errors
 from app.schemas.lap import LapCompare, LapDetail, LapListItem, LapMeta, LapSummary
+from app.schemas.track import ReferenceCompare
 
 router = APIRouter(tags=["laps"])
 
@@ -56,3 +57,11 @@ async def lap_trace(
 ) -> dict[str, Any]:
     """Decompressed lap-trace/1 (columnar channels) for the web charts."""
     return await service.get_lap_trace(user, lap_id)
+
+
+@router.get("/laps/{lap_id}/reference-compare", response_model=ReferenceCompare)
+async def reference_compare(
+    lap_id: uuid.UUID, user: CurrentUser, service: LapServiceDep
+) -> ReferenceCompare:
+    """Delta of the caller's lap vs the modeled 'ideal lap' for its track."""
+    return await service.compare_reference(user, lap_id)

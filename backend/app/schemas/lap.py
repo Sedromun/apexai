@@ -83,6 +83,8 @@ class LapDetail(BaseModel):
     metrics: dict[str, Any] | None
     trace: TraceMeta | None
     reference_lap_id: uuid.UUID | None = None
+    # Modeled 'ideal lap' available for this track (label/kind/lap_time_ms), if any.
+    track_reference: dict[str, Any] | None = None
 
 
 class CompareLapRef(BaseModel):

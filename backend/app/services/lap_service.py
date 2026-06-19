@@ -29,6 +29,8 @@ from app.schemas.lap import (
     SessionSummary,
     TraceMeta,
 )
+from app.schemas.track import ReferenceCompare
+from app.services import track_catalog
 from app.storage.object_store import ObjectStore
 from app.telemetry.compare import compute_delta
 from app.telemetry.metrics import compute_lap_metrics
@@ -195,6 +197,9 @@ class LapService:
         reference = await self.laps.get_best_lap_for_track(
             user.id, lap.session.game, lap.session.track, exclude_lap_id=lap.id
         )
+        track_ref = (
+            track_catalog.reference_meta(lap.session.track) if lap.session.track else None
+        )
         return LapDetail(
             id=lap.id,
             session_id=lap.session_id,
@@ -209,6 +214,7 @@ class LapService:
             metrics=lap.metrics,
             trace=trace_meta,
             reference_lap_id=reference.id if reference else None,
+            track_reference=track_ref,
         )
 
     async def get_lap_trace(self, user: User, lap_id: uuid.UUID) -> dict:
@@ -233,6 +239,33 @@ class LapService:
         return LapCompare(
             a=CompareLapRef(id=lap_a.id, lap_time_ms=lap_a.lap_time_ms, track=lap_a.session.track),
             b=CompareLapRef(id=lap_b.id, lap_time_ms=lap_b.lap_time_ms, track=lap_b.session.track),
+            distance_m=delta["distance_m"],
+            delta_s=delta["delta_s"],
+            total_delta_s=delta["total_delta_s"],
+            corners=delta["corners"],
+        )
+
+    async def compare_reference(self, user: User, lap_id: uuid.UUID) -> ReferenceCompare:
+        """Compare the caller's lap against the modeled 'ideal lap' for its track."""
+        lap = await self.laps.get_for_user(lap_id, user.id)
+        if lap is None or lap.trace is None:
+            raise NotFoundError("Lap not found", code="lap_not_found")
+
+        track = lap.session.track
+        ref_trace = track_catalog.reference_trace(track) if track else None
+        ref_meta = track_catalog.reference_meta(track) if track else None
+        if ref_trace is None or ref_meta is None:
+            raise NotFoundError(
+                "No reference lap for this track", code="reference_not_found"
+            )
+
+        self_trace = LapTrace.from_gzip(await self.store.get(lap.trace.storage_key))
+        delta = compute_delta(self_trace, ref_trace)
+        return ReferenceCompare(
+            track=track,
+            reference_label=ref_meta["label"],
+            reference_lap_time_ms=ref_meta["lap_time_ms"],
+            self_lap_time_ms=lap.lap_time_ms,
             distance_m=delta["distance_m"],
             delta_s=delta["delta_s"],
             total_delta_s=delta["total_delta_s"],
