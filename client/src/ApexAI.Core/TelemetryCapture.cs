@@ -19,7 +19,26 @@ public sealed class TelemetryCapture
     private ushort _format = F1PacketParser.FormatF1_25;
     private ulong _sessionUid;
 
+    // Live state, surfaced via Snapshot for an on-screen HUD.
+    private long _packets;
+    private int _lapsCaptured;
+    private CarTelemetrySample _lastTelemetry;
+    private LapDataSample _lastLap;
+
     public event Action<CompletedLap>? LapCompleted;
+
+    /// <summary>Immutable live snapshot of capture state (safe to read from a HUD thread).</summary>
+    public LiveTelemetry Snapshot => new(
+        _packets,
+        _lastTelemetry.SpeedKmh,
+        _lastTelemetry.Gear,
+        _lastTelemetry.Throttle * 100.0,
+        _lastTelemetry.Brake * 100.0,
+        _lastLap.CurrentLapNum,
+        _lastLap.CurrentLapTimeMs,
+        _lastLap.LapDistanceM,
+        _assembler.CurrentSampleCount,
+        _lapsCaptured);
 
     public TelemetryCapture(int port, UploadQueue queue)
     {
@@ -56,6 +75,7 @@ public sealed class TelemetryCapture
             return;
         _format = header.PacketFormat;
         _sessionUid = header.SessionUid;
+        _packets++;
 
         switch (header.PacketId)
         {
@@ -68,11 +88,15 @@ public sealed class TelemetryCapture
                 break;
             case PacketIds.CarTelemetry:
                 if (F1PacketParser.TryParseCarTelemetry(data, header, out var tel))
+                {
+                    _lastTelemetry = tel;
                     _assembler.OnCarTelemetry(tel);
+                }
                 break;
             case PacketIds.LapData:
                 if (F1PacketParser.TryParseLapData(data, header, out var lap))
                 {
+                    _lastLap = lap;
                     var done = _assembler.OnLapData(lap);
                     if (done is not null)
                         Enqueue(done);
@@ -97,6 +121,20 @@ public sealed class TelemetryCapture
             SampleCount: lap.SampleCount);
 
         _queue.Enqueue(meta, lap.Trace.ToGzipJson());
+        _lapsCaptured++;
         LapCompleted?.Invoke(lap);
     }
 }
+
+/// <summary>Immutable live snapshot of capture state for a console/UI HUD.</summary>
+public readonly record struct LiveTelemetry(
+    long PacketCount,
+    int SpeedKmh,
+    int Gear,
+    double ThrottlePct,
+    double BrakePct,
+    int CurrentLapNum,
+    uint CurrentLapTimeMs,
+    double LapDistanceM,
+    int SamplesThisLap,
+    int LapsCaptured);

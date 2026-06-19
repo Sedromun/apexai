@@ -8,6 +8,7 @@ try { Console.OutputEncoding = Encoding.UTF8; } catch { /* output redirected */ 
 var config = AppConfig.Default;
 using var api = new ApiClient(config.ApiBase);
 var session = new ClientSession(api, new TokenStore());
+var consoleLock = new object(); // serialises HUD line vs lap-captured messages
 
 // No arguments → the user almost certainly double-clicked the .exe in Explorer.
 // Run a friendly interactive flow and keep the window open; a plain console app
@@ -123,7 +124,13 @@ async Task CaptureAsync()
     var queue = new UploadQueue(session);
     var capture = new TelemetryCapture(config.UdpPort, queue);
     capture.LapCompleted += lap =>
-        Console.WriteLine($"  + Lap {lap.LapTimeMs / 1000.0:F3}s captured (valid={lap.Valid}), uploading...");
+    {
+        lock (consoleLock)
+        {
+            ClearStatusLine();
+            Console.WriteLine($"  + Lap {FmtClock((uint)lap.LapTimeMs)} captured (valid={lap.Valid}) -> queued for upload.");
+        }
+    };
 
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) =>
@@ -135,12 +142,13 @@ async Task CaptureAsync()
     Console.WriteLine($"Listening for F1 telemetry on UDP :{config.UdpPort}.");
     Console.WriteLine("In F1 24/25:  Settings -> Telemetry Settings -> UDP Telemetry = On,");
     Console.WriteLine($"              UDP Port = {config.UdpPort}, UDP Format = 2024 (or 2025). Then drive.");
-    Console.WriteLine("Press Ctrl+C to stop.");
+    Console.WriteLine("The live line below shows incoming data. Press Ctrl+C to stop.");
     Console.WriteLine();
 
+    var hud = HudLoop(capture, cts.Token);
     var flusher = FlushLoop(queue, cts.Token);
     await capture.RunAsync(cts.Token);
-    await flusher;
+    await Task.WhenAll(hud, flusher);
 }
 
 async Task SendDemoLapAsync()
@@ -273,3 +281,70 @@ static async Task FlushLoop(UploadQueue queue, CancellationToken ct)
         }
     }
 }
+
+// ---------- live HUD (single console line, refreshed ~5x/sec) ----------
+
+async Task HudLoop(TelemetryCapture capture, CancellationToken ct)
+{
+    const string spinner = @"|/-\";
+    int frame = 0;
+    long lastPackets = -1;
+    while (!ct.IsCancellationRequested)
+    {
+        try { await Task.Delay(200, ct); }
+        catch (OperationCanceledException) { break; }
+
+        var s = capture.Snapshot;
+        bool flowing = s.PacketCount != lastPackets;
+        lastPackets = s.PacketCount;
+
+        string line = s.PacketCount == 0
+            ? "  ...waiting for telemetry - no UDP packets yet (check UDP On / port / format)"
+            : string.Format(
+                "  [{0}] lap {1}  {2}  {3,3} km/h  gear {4}  thr {5,3:0}%  brk {6,3:0}%  dist {7,4:0}m  pts {8}  laps:{9}",
+                flowing ? spinner[frame++ % 4] : '=',
+                s.CurrentLapNum,
+                FmtClock(s.CurrentLapTimeMs),
+                s.SpeedKmh,
+                GearStr(s.Gear),
+                s.ThrottlePct,
+                s.BrakePct,
+                s.LapDistanceM,
+                s.SamplesThisLap,
+                s.LapsCaptured);
+
+        lock (consoleLock)
+            WriteStatusLine(line);
+    }
+
+    lock (consoleLock)
+        ClearStatusLine();
+}
+
+static int ConsoleWidthSafe()
+{
+    try { return Console.WindowWidth > 1 ? Console.WindowWidth - 1 : 100; }
+    catch { return 100; }
+}
+
+static void WriteStatusLine(string text)
+{
+    int width = ConsoleWidthSafe();
+    if (text.Length > width) text = text[..width];
+    Console.Write("\r" + text.PadRight(width));
+}
+
+static void ClearStatusLine()
+{
+    int width = ConsoleWidthSafe();
+    Console.Write("\r" + new string(' ', width) + "\r");
+}
+
+static string FmtClock(uint ms)
+{
+    if (ms == 0) return "  --:--";
+    var t = TimeSpan.FromMilliseconds(ms);
+    return $"{(int)t.TotalMinutes}:{t.Seconds:00}.{t.Milliseconds:000}";
+}
+
+static string GearStr(int gear) => gear < 0 ? "R" : gear == 0 ? "N" : gear.ToString();

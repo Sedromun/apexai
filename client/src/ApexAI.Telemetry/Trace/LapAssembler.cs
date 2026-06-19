@@ -28,6 +28,9 @@ public sealed class LapAssembler
 
     public LapAssembler(int hz = 60) => _hz = hz;
 
+    /// <summary>Samples accumulated for the lap currently in progress (for a live HUD).</summary>
+    public int CurrentSampleCount => _t.Count;
+
     public void OnCarTelemetry(in CarTelemetrySample sample) => _latestTelemetry = sample;
 
     /// <summary>Feed a lap-data sample. Returns a completed lap when the lap rolls over, else null.</summary>
