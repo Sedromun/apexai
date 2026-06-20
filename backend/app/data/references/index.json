@@ -81,19 +81,23 @@
  },
  "Spa": {
   "slug": "spa",
-  "lap_time_ms": 104701,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 319.0
+  "lap_time_ms": 100053,
+  "kind": "real",
+  "label": "Реальный круг — dd32255 (F1 25)",
+  "driver": "dd32255",
+  "source": "racenet",
+  "samples": 401,
+  "max_speed_kmh": 345.6
  },
  "Monza": {
   "slug": "monza",
-  "lap_time_ms": 80901,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 320.2
+  "lap_time_ms": 77354,
+  "kind": "real",
+  "label": "Реальный круг — TheDestripador07 (F1 25)",
+  "driver": "TheDestripador07",
+  "source": "racenet",
+  "samples": 299,
+  "max_speed_kmh": 349.2
  },
  "Singapore": {
   "slug": "singapore",
