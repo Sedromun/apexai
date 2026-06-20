@@ -101,51 +101,63 @@
  },
  "Singapore": {
   "slug": "singapore",
-  "lap_time_ms": 93808,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 303.0
+  "lap_time_ms": 86888,
+  "kind": "real",
+  "label": "Реальный круг — TTVHighPower (F1 25)",
+  "driver": "TTVHighPower",
+  "source": "racenet",
+  "samples": 348,
+  "max_speed_kmh": 313.2
  },
  "Suzuka": {
   "slug": "suzuka",
-  "lap_time_ms": 90965,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 322.1
+  "lap_time_ms": 85975,
+  "kind": "real",
+  "label": "Реальный круг — TheDestripador07 (F1 25)",
+  "driver": "TheDestripador07",
+  "source": "racenet",
+  "samples": 321,
+  "max_speed_kmh": 331.2
  },
  "Abu Dhabi": {
   "slug": "abu-dhabi",
-  "lap_time_ms": 85637,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 320.9
+  "lap_time_ms": 81468,
+  "kind": "real",
+  "label": "Реальный круг — GebakkenRusty (F1 25)",
+  "driver": "GebakkenRusty",
+  "source": "racenet",
+  "samples": 309,
+  "max_speed_kmh": 338.4
  },
  "Texas (COTA)": {
   "slug": "texas-cota",
-  "lap_time_ms": 96169,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 324.3
+  "lap_time_ms": 90266,
+  "kind": "real",
+  "label": "Реальный круг — Otis Lawrence (F1 25)",
+  "driver": "Otis Lawrence",
+  "source": "racenet",
+  "samples": 361,
+  "max_speed_kmh": 324.0
  },
  "Brazil (Interlagos)": {
   "slug": "brazil-interlagos",
-  "lap_time_ms": 70540,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 326.3
+  "lap_time_ms": 64900,
+  "kind": "real",
+  "label": "Реальный круг — TheDestripador07 (F1 25)",
+  "driver": "TheDestripador07",
+  "source": "racenet",
+  "samples": 251,
+  "max_speed_kmh": 338.4
  },
  "Austria (Red Bull Ring)": {
   "slug": "austria-red-bull-ring",
-  "lap_time_ms": 65619,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 322.8
+  "lap_time_ms": 62344,
+  "kind": "real",
+  "label": "Реальный круг — Lucasenforce (F1 25)",
+  "driver": "Lucasenforce",
+  "source": "racenet",
+  "samples": 375,
+  "max_speed_kmh": 313.2
  },
  "Sochi": {
   "slug": "sochi",
@@ -157,19 +169,23 @@
  },
  "Mexico": {
   "slug": "mexico",
-  "lap_time_ms": 77774,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 310.5
+  "lap_time_ms": 70947,
+  "kind": "real",
+  "label": "Реальный круг — Future_Ibra (F1 25)",
+  "driver": "Future_Ibra",
+  "source": "racenet",
+  "samples": 285,
+  "max_speed_kmh": 324.0
  },
  "Baku": {
   "slug": "baku",
-  "lap_time_ms": 103009,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 293.4
+  "lap_time_ms": 97677,
+  "kind": "real",
+  "label": "Реальный круг — Mc_jammy481dodge (F1 25)",
+  "driver": "Mc_jammy481dodge",
+  "source": "racenet",
+  "samples": 392,
+  "max_speed_kmh": 342.0
  },
  "Zandvoort": {
   "slug": "zandvoort",
@@ -183,11 +199,13 @@
  },
  "Imola": {
   "slug": "imola",
-  "lap_time_ms": 75484,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 334.1
+  "lap_time_ms": 73169,
+  "kind": "real",
+  "label": "Реальный круг — Thomas Ronhaar (F1 25)",
+  "driver": "Thomas Ronhaar",
+  "source": "racenet",
+  "samples": 293,
+  "max_speed_kmh": 316.8
  },
  "Portimao": {
   "slug": "portimao",
@@ -199,34 +217,42 @@
  },
  "Jeddah": {
   "slug": "jeddah",
-  "lap_time_ms": 90734,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 327.3
+  "lap_time_ms": 85947,
+  "kind": "real",
+  "label": "Реальный круг — TROLINESCO (F1 25)",
+  "driver": "TROLINESCO",
+  "source": "racenet",
+  "samples": 345,
+  "max_speed_kmh": 334.8
  },
  "Miami": {
   "slug": "miami",
-  "lap_time_ms": 89708,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 312.1
+  "lap_time_ms": 84543,
+  "kind": "real",
+  "label": "Реальный круг — TheDestripador07 (F1 25)",
+  "driver": "TheDestripador07",
+  "source": "racenet",
+  "samples": 321,
+  "max_speed_kmh": 338.4
  },
  "Las Vegas": {
   "slug": "las-vegas",
-  "lap_time_ms": 93365,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 311.8
+  "lap_time_ms": 86934,
+  "kind": "real",
+  "label": "Реальный круг — 雾眠冰阔落 (F1 25)",
+  "driver": "雾眠冰阔落",
+  "source": "racenet",
+  "samples": 348,
+  "max_speed_kmh": 370.8
  },
  "Losail (Qatar)": {
   "slug": "losail-qatar",
-  "lap_time_ms": 82563,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 338.4
+  "lap_time_ms": 80323,
+  "kind": "real",
+  "label": "Реальный круг — TROLINESCO (F1 25)",
+  "driver": "TROLINESCO",
+  "source": "racenet",
+  "samples": 320,
+  "max_speed_kmh": 324.0
  }
 }
