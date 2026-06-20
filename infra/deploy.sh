@@ -29,5 +29,11 @@ if [ "$healthy" -ne 1 ]; then
 fi
 curl -skf --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/" >/dev/null && echo "    web healthy"
 
+# Keep the demo account on Pro so the AI-coach learning trajectory (needs >1 analysis)
+# is always testable. Harmless no-op if the user doesn't exist yet.
+echo "==> Ensuring demo account is Pro"
+$COMPOSE exec -T backend python -m app.cli set-plan --email demo@apexai.dev --plan pro \
+  || echo "    (skipped — backend busy or demo user absent)"
+
 $COMPOSE ps
 echo "==> Deploy OK"

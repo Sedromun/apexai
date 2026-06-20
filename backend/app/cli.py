@@ -68,6 +68,20 @@ async def _seed(email: str, password: str, laps: int) -> None:
     print(f"Done. Log in as {email} and open the cabinet.")
 
 
+async def _set_plan(email: str, plan: str) -> None:
+    """Set a user's billing plan directly (e.g. grant the demo account Pro for testing)."""
+    email = email.lower()
+    async with SessionLocal() as db:
+        users = UserRepository(db)
+        user = await users.get_by_email(email)
+        if user is None:
+            print(f"No such user: {email}")
+            return
+        old, user.plan = user.plan, plan
+        await db.commit()
+        print(f"{email}: plan {old} -> {plan}")
+
+
 async def _recompute_metrics() -> None:
     """Backfill / refresh layer-1 metrics for every stored lap (e.g. after a metrics change)."""
     store = get_object_store()
@@ -95,11 +109,17 @@ def main() -> None:
 
     sub.add_parser("recompute-metrics", help="Recompute layer-1 metrics for all stored laps")
 
+    plan_p = sub.add_parser("set-plan", help="Set a user's billing plan (free|pro)")
+    plan_p.add_argument("--email", required=True)
+    plan_p.add_argument("--plan", default="pro", choices=["free", "pro"])
+
     args = parser.parse_args()
     if args.command == "seed":
         asyncio.run(_seed(args.email, args.password, args.laps))
     elif args.command == "recompute-metrics":
         asyncio.run(_recompute_metrics())
+    elif args.command == "set-plan":
+        asyncio.run(_set_plan(args.email, args.plan))
 
 
 if __name__ == "__main__":
