@@ -1,11 +1,13 @@
 {
  "Melbourne": {
   "slug": "melbourne",
-  "lap_time_ms": 79813,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 330.4
+  "lap_time_ms": 74045,
+  "kind": "real",
+  "label": "Реальный круг — рекорд трассы (F1 25)",
+  "driver": "",
+  "source": "racenet",
+  "samples": 292,
+  "max_speed_kmh": 327.6
  },
  "Paul Ricard": {
   "slug": "paul-ricard",
@@ -17,51 +19,63 @@
  },
  "Shanghai": {
   "slug": "shanghai",
-  "lap_time_ms": 92238,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 316.3
+  "lap_time_ms": 89243,
+  "kind": "real",
+  "label": "Реальный круг — TheDestripador07 (F1 25)",
+  "driver": "TheDestripador07",
+  "source": "racenet",
+  "samples": 339,
+  "max_speed_kmh": 331.2
  },
  "Sakhir (Bahrain)": {
   "slug": "sakhir-bahrain",
-  "lap_time_ms": 91447,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 303.6
+  "lap_time_ms": 86393,
+  "kind": "real",
+  "label": "Реальный круг — TheDestripador07 (F1 25)",
+  "driver": "TheDestripador07",
+  "source": "racenet",
+  "samples": 335,
+  "max_speed_kmh": 331.2
  },
  "Catalunya": {
   "slug": "catalunya",
-  "lap_time_ms": 75743,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 322.0
+  "lap_time_ms": 71211,
+  "kind": "real",
+  "label": "Реальный круг — TROLINESCO (F1 25)",
+  "driver": "TROLINESCO",
+  "source": "racenet",
+  "samples": 280,
+  "max_speed_kmh": 327.6
  },
  "Monaco": {
   "slug": "monaco",
-  "lap_time_ms": 72909,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 323.4
+  "lap_time_ms": 67461,
+  "kind": "real",
+  "label": "Реальный круг — Mc_jammy481dodge (F1 25)",
+  "driver": "Mc_jammy481dodge",
+  "source": "racenet",
+  "samples": 271,
+  "max_speed_kmh": 284.4
  },
  "Montreal": {
   "slug": "montreal",
-  "lap_time_ms": 73078,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 307.9
+  "lap_time_ms": 68243,
+  "kind": "real",
+  "label": "Реальный круг — Kian Goedendorp (F1 25)",
+  "driver": "Kian Goedendorp",
+  "source": "racenet",
+  "samples": 273,
+  "max_speed_kmh": 327.6
  },
  "Silverstone": {
   "slug": "silverstone",
-  "lap_time_ms": 87196,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 338.4
+  "lap_time_ms": 84686,
+  "kind": "real",
+  "label": "Реальный круг — TheDestripador07 (F1 25)",
+  "driver": "TheDestripador07",
+  "source": "racenet",
+  "samples": 330,
+  "max_speed_kmh": 327.6
  },
  "Hockenheim": {
   "slug": "hockenheim",
@@ -73,11 +87,13 @@
  },
  "Hungaroring": {
   "slug": "hungaroring",
-  "lap_time_ms": 76627,
-  "kind": "modeled",
-  "label": "Идеальный круг (модель)",
-  "samples": 600,
-  "max_speed_kmh": 327.8
+  "lap_time_ms": 74162,
+  "kind": "real",
+  "label": "Реальный круг — Ismael Fahssi (F1 25)",
+  "driver": "Ismael Fahssi",
+  "source": "racenet",
+  "samples": 297,
+  "max_speed_kmh": 309.6
  },
  "Spa": {
   "slug": "spa",
