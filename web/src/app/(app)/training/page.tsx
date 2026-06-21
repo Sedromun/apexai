@@ -133,8 +133,7 @@ function TrackTrajectory({ track, lessons }: { track: string; lessons: Trajector
   const times = lessons.map((l) => l.lap_time_ms);
   const best = Math.min(...times);
   const first = times[0];
-  const last = times[times.length - 1];
-  const totalGain = (first - last) / 1000; // positive = got faster overall
+  const gainToBest = (first - best) / 1000; // how much faster your best is than your first lesson
 
   return (
     <Card className="p-5">
@@ -146,10 +145,9 @@ function TrackTrajectory({ track, lessons }: { track: string; lessons: Trajector
         <span className="text-xs text-muted">
           лучший <span className="font-mono text-foreground">{fmtLapTime(best)}</span>
         </span>
-        {lessons.length > 1 && (
-          <span className={cn("text-xs font-medium", totalGain >= 0 ? "text-positive" : "text-negative")}>
-            {totalGain >= 0 ? "быстрее на " : "медленнее на "}
-            {Math.abs(totalGain).toFixed(2)} с
+        {lessons.length > 1 && gainToBest > 0.05 && (
+          <span className="text-xs font-medium text-positive">
+            прогресс −{gainToBest.toFixed(2)} с от первого урока
           </span>
         )}
         <div className="ml-auto">
