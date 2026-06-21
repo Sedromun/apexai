@@ -3,10 +3,50 @@
 import uPlot from "uplot";
 import { useEffect, useRef } from "react";
 
+/** New x-window when zooming around `pivot` by `factor` (<1 = zoom in), clamped to
+ * [fMin,fMax]. Returns null if it would shrink below `minFrac` of the full span. */
+export function zoomWindow(
+  min: number,
+  max: number,
+  pivot: number,
+  factor: number,
+  fMin: number,
+  fMax: number,
+  minFrac = 0.015,
+): [number, number] | null {
+  let lo = pivot - (pivot - min) * factor;
+  let hi = pivot + (max - pivot) * factor;
+  lo = Math.max(fMin, lo);
+  hi = Math.min(fMax, hi);
+  if (hi - lo < (fMax - fMin) * minFrac || lo >= hi) return null;
+  return [lo, hi];
+}
+
+/** New x-window when panning the captured [min,max] window by `dxFrac` of its span,
+ * clamped to [fMin,fMax] (keeps the span fixed at the edges). */
+export function panWindow(
+  min: number,
+  max: number,
+  dxFrac: number,
+  fMin: number,
+  fMax: number,
+): [number, number] {
+  const span = max - min;
+  const dx = dxFrac * span;
+  let lo = min - dx;
+  let hi = max - dx;
+  if (lo < fMin) [lo, hi] = [fMin, fMin + span];
+  if (hi > fMax) [lo, hi] = [fMax - span, fMax];
+  return [lo, hi];
+}
+
 /**
- * Thin React wrapper around uPlot: create on mount, resize with the container, setData on change.
- * Adds a hover callback (reports the x value under the cursor) and external x-range control so
- * several charts can share one zoom window (drag to zoom, double-click to reset).
+ * Thin React wrapper around uPlot. Adds a hover callback (x under the cursor) and an
+ * externally controlled x-window so charts share one zoom (mouse-wheel zooms around the
+ * cursor, drag pans left/right, double-click resets). Interactions report the new window
+ * via `onZoom`; the parent feeds it back through `xRange`, which is the single applier of
+ * the scale to every chart — handlers never call setScale directly (that round-trip raced
+ * and reset the zoom).
  */
 export function UplotChart({
   data,
@@ -27,7 +67,9 @@ export function UplotChart({
   const chartRef = useRef<uPlot | null>(null);
   const onHoverRef = useRef(onHover);
   const onZoomRef = useRef(onZoom);
-  const applyingRef = useRef(false);
+  // Synchronous source of truth for the current window so rapid wheel ticks compound
+  // without waiting for the React round-trip. null = full extent.
+  const rangeRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
     onHoverRef.current = onHover;
@@ -49,47 +91,32 @@ export function UplotChart({
           onHoverRef.current?.(i == null || i < 0 ? null : (u.data[0][i] as number));
         },
       ],
-      setScale: [
-        ...(options.hooks?.setScale ?? []),
-        (u: uPlot, key: string) => {
-          if (key !== "x" || applyingRef.current) return;
-          const s = u.scales.x;
-          const xs = u.data[0];
-          if (s.min == null || s.max == null || !xs.length) return;
-          const isFull = s.min <= (xs[0] as number) && s.max >= (xs[xs.length - 1] as number);
-          onZoomRef.current?.(isFull ? null : [s.min, s.max]);
-        },
-      ],
     };
 
     const chart = new uPlot(merged, data as unknown as uPlot.AlignedData, host);
     chartRef.current = chart;
 
-    // --- mouse-wheel zoom (around the cursor) + drag-to-pan ---------------------
-    // setScale() fires the setScale hook above, which reports the new window up to
-    // the parent and syncs every sibling chart through the shared `xRange`.
     const over = chart.over;
     const fullMin = () => chart.data[0][0] as number;
     const fullMax = () => chart.data[0][chart.data[0].length - 1] as number;
-    const MIN_SPAN_FRAC = 0.015; // don't let the window shrink below ~1.5% of the lap
+    const curWindow = (): [number, number] => rangeRef.current ?? [fullMin(), fullMax()];
+    const report = (r: [number, number] | null) => {
+      rangeRef.current = r;
+      onZoomRef.current?.(r);
+    };
+    const asReport = (lo: number, hi: number): [number, number] | null =>
+      lo <= fullMin() && hi >= fullMax() ? null : [lo, hi];
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const sx = chart.scales.x;
-      if (sx.min == null || sx.max == null) return;
       const rect = over.getBoundingClientRect();
       if (!rect.width) return;
-      const pivot = chart.posToVal(e.clientX - rect.left, "x");
-      const factor = e.deltaY < 0 ? 0.82 : 1 / 0.82; // wheel up = zoom in
-      const fMin = fullMin();
-      const fMax = fullMax();
-      let lo = pivot - (pivot - sx.min) * factor;
-      let hi = pivot + (sx.max - pivot) * factor;
-      lo = Math.max(fMin, lo);
-      hi = Math.min(fMax, hi);
-      if (hi - lo < (fMax - fMin) * MIN_SPAN_FRAC) return;
-      if (lo >= hi) return;
-      chart.setScale("x", { min: lo, max: hi });
+      const [min, max] = curWindow();
+      const pivot = min + ((e.clientX - rect.left) / rect.width) * (max - min);
+      const intensity = Math.min(0.3, Math.abs(e.deltaY) / 500) || 0.18;
+      const factor = e.deltaY < 0 ? 1 - intensity : 1 / (1 - intensity);
+      const win = zoomWindow(min, max, pivot, factor, fullMin(), fullMax());
+      if (win) report(asReport(win[0], win[1]));
     };
 
     let panning = false;
@@ -98,37 +125,25 @@ export function UplotChart({
     let panMax = 0;
     const onDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
-      const sx = chart.scales.x;
-      if (sx.min == null || sx.max == null) return;
+      [panMin, panMax] = curWindow();
       panning = true;
       panStartX = e.clientX;
-      panMin = sx.min;
-      panMax = sx.max;
       over.style.cursor = "grabbing";
+      e.preventDefault();
     };
     const onMove = (e: MouseEvent) => {
       if (!panning) return;
       const rect = over.getBoundingClientRect();
       if (!rect.width) return;
-      const span = panMax - panMin;
-      const dx = ((e.clientX - panStartX) / rect.width) * span;
-      const fMin = fullMin();
-      const fMax = fullMax();
-      let lo = panMin - dx;
-      let hi = panMax - dx;
-      if (lo < fMin) [lo, hi] = [fMin, fMin + span];
-      if (hi > fMax) [lo, hi] = [fMax - span, fMax];
-      chart.setScale("x", { min: lo, max: hi });
+      const [lo, hi] = panWindow(panMin, panMax, (e.clientX - panStartX) / rect.width, fullMin(), fullMax());
+      report(asReport(lo, hi));
     };
     const onUp = () => {
       if (!panning) return;
       panning = false;
       over.style.cursor = "";
     };
-    const onDblClick = () => {
-      onZoomRef.current?.(null);
-      chart.setScale("x", { min: fullMin(), max: fullMax() });
-    };
+    const onDblClick = () => report(null);
 
     over.addEventListener("wheel", onWheel, { passive: false });
     over.addEventListener("mousedown", onDown);
@@ -159,18 +174,18 @@ export function UplotChart({
     chartRef.current?.setData(data as unknown as uPlot.AlignedData);
   }, [data]);
 
-  // Apply an externally controlled x window (shared zoom across charts).
+  // The single applier of the shared x-window to this chart (and so, every chart).
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    applyingRef.current = true;
+    rangeRef.current = xRange ?? null;
     if (xRange) {
       chart.setScale("x", { min: xRange[0], max: xRange[1] });
     } else {
       const xs = chart.data[0];
-      if (xs && xs.length) chart.setScale("x", { min: xs[0] as number, max: xs[xs.length - 1] as number });
+      if (xs && xs.length)
+        chart.setScale("x", { min: xs[0] as number, max: xs[xs.length - 1] as number });
     }
-    applyingRef.current = false;
   }, [xRange]);
 
   return <div ref={hostRef} className="w-full" />;
