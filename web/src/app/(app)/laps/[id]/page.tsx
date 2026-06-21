@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TelemetryView } from "@/components/charts/TelemetryView";
 import { CoachPanel } from "@/components/CoachPanel";
 import { CornersTable } from "@/components/CornersTable";
@@ -21,7 +21,6 @@ import {
   useTrack,
   useTrackReference,
 } from "@/lib/queries";
-import type { CompareCorner } from "@/lib/types";
 
 const REFERENCE_COLOR = "#22d3ee";
 
@@ -104,42 +103,39 @@ export default function LapPage() {
   const { data: trackCompare } = useReferenceCompare(source === "track" ? lapId : undefined);
   const { data: track } = useTrack(trackName);
 
+  // Memoised so a hover (which only updates hoverDist) doesn't produce a new object,
+  // re-run TelemetryView's chart memo, and destroy/recreate every uPlot — which reset
+  // the cursor and made the crosshair + track dot blink/lag.
+  const compareView = useMemo(() => {
+    if (source === "track" && trackCompare) {
+      return {
+        distance_m: trackCompare.distance_m,
+        delta_s: trackCompare.delta_s,
+        total_delta_s: trackCompare.total_delta_s,
+        corners: trackCompare.corners,
+        refLabel: trackCompare.reference_label,
+        refTimeMs: trackCompare.reference_lap_time_ms,
+      };
+    }
+    if (source === "best" && bestCompare) {
+      return {
+        distance_m: bestCompare.distance_m,
+        delta_s: bestCompare.delta_s,
+        total_delta_s: bestCompare.total_delta_s,
+        corners: bestCompare.corners,
+        refLabel: "Мой лучший круг",
+        refTimeMs: bestCompare.b.lap_time_ms,
+      };
+    }
+    return null;
+  }, [source, trackCompare, bestCompare]);
+
   if (lapLoading || traceLoading) return <Spinner label="Загрузка круга…" />;
   if (error || !lap || !trace)
     return <p className="text-sm text-negative">Не удалось загрузить круг.</p>;
 
   const referenceTrace =
     source === "track" ? (trackRef?.trace ?? null) : source === "best" ? (bestTrace ?? null) : null;
-
-  const compareView:
-    | {
-        distance_m: number[];
-        delta_s: number[];
-        total_delta_s: number;
-        corners: CompareCorner[];
-        refLabel: string;
-        refTimeMs: number;
-      }
-    | null =
-    source === "track" && trackCompare
-      ? {
-          distance_m: trackCompare.distance_m,
-          delta_s: trackCompare.delta_s,
-          total_delta_s: trackCompare.total_delta_s,
-          corners: trackCompare.corners,
-          refLabel: trackCompare.reference_label,
-          refTimeMs: trackCompare.reference_lap_time_ms,
-        }
-      : source === "best" && bestCompare
-        ? {
-            distance_m: bestCompare.distance_m,
-            delta_s: bestCompare.delta_s,
-            total_delta_s: bestCompare.total_delta_s,
-            corners: bestCompare.corners,
-            refLabel: "Мой лучший круг",
-            refTimeMs: bestCompare.b.lap_time_ms,
-          }
-        : null;
 
   const summary = lap.metrics?.summary;
   const distanceKm = summary ? (summary.distance_m / 1000).toFixed(2) : null;
