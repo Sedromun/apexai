@@ -77,6 +77,11 @@ class PaymentRequiredError(AppError):
     code = "payment_required"
 
 
+class CoachUnavailableError(AppError):
+    status_code = 503
+    code = "coach_unavailable"
+
+
 def _envelope(code: str, message: str, details: Any | None = None) -> dict[str, Any]:
     body: dict[str, Any] = {"error": {"code": code, "message": message}}
     if details is not None:

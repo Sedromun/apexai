@@ -6,9 +6,14 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.coach.payload import build_coach_payload, validate_result
-from app.coach.providers import CoachProvider, CoachResult, StubProvider, get_coach_provider
+from app.coach.providers import CoachError, CoachProvider, CoachResult, get_coach_provider
 from app.core.config import settings
-from app.core.errors import NotFoundError, PaymentRequiredError, ValidationAppError
+from app.core.errors import (
+    CoachUnavailableError,
+    NotFoundError,
+    PaymentRequiredError,
+    ValidationAppError,
+)
 from app.models.coach_report import CoachReport
 from app.models.user import User
 from app.repositories.coach_repo import CoachReportRepository
@@ -33,17 +38,19 @@ class CoachService:
         self.laps = LapRepository(db)
         self.provider = provider or get_coach_provider()
 
-    async def analyze(self, user: User, lap_id: uuid.UUID) -> CoachReport:
+    async def analyze(self, user: User, lap_id: uuid.UUID, *, force: bool = False) -> CoachReport:
         lap = await self.laps.get_for_user(lap_id, user.id)
         if lap is None:
             raise NotFoundError("Lap not found", code="lap_not_found")
 
-        # Cache: one report per lap. Returning it never consumes a new analysis.
-        cached = await self.reports.get_for_lap(lap.id)
-        if cached is not None:
-            return cached
+        # Cache: one report per lap. Returning it never consumes a new analysis. `force`
+        # regenerates (e.g. the "Перегенерировать" button) and replaces the old report.
+        existing = await self.reports.get_for_lap(lap.id)
+        if existing is not None and not force:
+            return existing
 
-        self._enforce_plan_limit(user, await self.reports.count_for_user(user.id))
+        used = await self.reports.count_for_user(user.id) - (1 if existing else 0)
+        self._enforce_plan_limit(user, used)
 
         if lap.trace is None:
             raise ValidationAppError("Lap has no telemetry to analyze", code="no_trace")
@@ -63,10 +70,14 @@ class CoachService:
             previous=previous,
         )
 
+        # Generate first; only if it succeeds do we replace the old report (a failed
+        # regenerate leaves the previous one intact).
         result = await self._generate(payload)
         # Carry the computed data so the next lap's review can compare against this one.
         result.corner_deltas = payload.get("corner_deltas", {})
         result.lap_time_s = payload.get("lap_time_s")
+        if existing is not None:
+            await self.reports.delete(existing.id)
         report = await self.reports.create(
             lap_id=lap.id,
             summary=result.to_dict(),
@@ -146,12 +157,15 @@ class CoachService:
         }
 
     async def _generate(self, payload) -> CoachResult:
+        # The real LLM is the only source of the coach's words — no fabricated fallback. If it
+        # fails or returns something ungrounded, surface a clean "retry" error instead of canned
+        # text, so the user can regenerate.
         try:
             result = await self.provider.analyze(payload, lang="ru")
             validate_result(result, payload)
             return result
-        except Exception:
-            logger.exception("Coach provider failed or returned invalid output; using fallback")
-            if isinstance(self.provider, StubProvider):
-                raise  # the deterministic provider failing is a real bug — don't mask it
-            return await StubProvider().analyze(payload, lang="ru")
+        except CoachError as exc:
+            logger.warning("Coach provider unavailable: %s", exc)
+            raise CoachUnavailableError(
+                "AI-тренер сейчас недоступен. Нажми «Перегенерировать» через пару секунд."
+            ) from exc

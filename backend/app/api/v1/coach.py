@@ -18,8 +18,11 @@ async def trajectory(user: CurrentUser, service: CoachServiceDep) -> list[Trajec
 async def analyze(
     body: CoachAnalyzeRequest, user: CurrentUser, service: CoachServiceDep
 ) -> CoachReportOut:
-    """Generate (or return cached) AI coach report for a lap. Pro feature (1 free trial)."""
-    return CoachReportOut.model_validate(await service.analyze(user, body.lap_id))
+    """Generate (or return cached) AI coach report for a lap. `force` regenerates it.
+    Pro feature (1 free trial)."""
+    return CoachReportOut.model_validate(
+        await service.analyze(user, body.lap_id, force=body.force)
+    )
 
 
 @router.get("/coach/reports/{report_id}", response_model=CoachReportOut)

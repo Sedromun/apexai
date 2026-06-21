@@ -14,14 +14,16 @@ export function CoachPanel({ lapId }: { lapId: string }) {
   const { data: report, isLoading } = useCoachReport(lapId);
   const analyze = useAnalyzeLap();
 
-  const onAnalyze = async () => {
+  const run = async (force: boolean) => {
     try {
-      await analyze.mutateAsync(lapId);
+      await analyze.mutateAsync({ lapId, force });
       await refreshUser(); // reflect the spent AI trial in usage counters
     } catch {
       /* error surfaced from analyze.error below */
     }
   };
+  const onAnalyze = () => run(false);
+  const onRegenerate = () => run(true);
 
   if (isLoading) {
     return (
@@ -35,10 +37,29 @@ export function CoachPanel({ lapId }: { lapId: string }) {
     const s = report.summary;
     return (
       <Card className="space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <CardTitle>AI-разбор тренера</CardTitle>
-          <span className="ml-auto text-xs text-muted">{report.model}</span>
+          <span className="ml-auto font-mono text-[11px] text-muted">{report.model}</span>
+          <button
+            type="button"
+            onClick={onRegenerate}
+            disabled={analyze.isPending}
+            title="Сгенерировать заново"
+            className={cn(
+              "rounded-full border border-border px-3 py-1 text-xs font-medium transition",
+              analyze.isPending
+                ? "cursor-not-allowed text-muted"
+                : "text-foreground hover:border-primary/50 hover:text-primary",
+            )}
+          >
+            {analyze.isPending ? "Генерирую…" : "↻ Перегенерировать"}
+          </button>
         </div>
+        {analyze.error && (
+          <p className="text-sm text-negative">
+            {analyze.error instanceof ApiError ? analyze.error.message : "Не удалось перегенерировать"}
+          </p>
+        )}
         <p className="text-sm">{s.summary_text}</p>
 
         {s.review && (

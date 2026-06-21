@@ -102,7 +102,8 @@ export function useCoachReport(lapId: string | undefined) {
 export function useAnalyzeLap() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (lapId: string) => apiJson<CoachReport>("/coach/analyze", "POST", { lap_id: lapId }),
+    mutationFn: ({ lapId, force = false }: { lapId: string; force?: boolean }) =>
+      apiJson<CoachReport>("/coach/analyze", "POST", { lap_id: lapId, force }),
     onSuccess: (report) => {
       qc.setQueryData(["coach", report.lap_id], report);
       qc.invalidateQueries({ queryKey: ["coach-trajectory"] });

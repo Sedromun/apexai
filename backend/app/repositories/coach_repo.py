@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.coach_report import CoachReport
@@ -88,6 +88,10 @@ class CoachReportRepository:
             .order_by(Lap.recorded_at.asc())
         )
         return (await self.db.execute(stmt)).all()
+
+    async def delete(self, report_id: uuid.UUID) -> None:
+        await self.db.execute(sa_delete(CoachReport).where(CoachReport.id == report_id))
+        await self.db.flush()
 
     async def create(
         self, *, lap_id: uuid.UUID, summary: dict[str, Any], body: str, model: str

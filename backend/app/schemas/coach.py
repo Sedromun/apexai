@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict
 
 class CoachAnalyzeRequest(BaseModel):
     lap_id: uuid.UUID
+    force: bool = False  # regenerate, replacing any existing report
 
 
 class CoachReportOut(BaseModel):
