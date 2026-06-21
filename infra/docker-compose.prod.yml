@@ -79,6 +79,9 @@ services:
       BILLING_WEBHOOK_SECRET: ${BILLING_WEBHOOK_SECRET}
       PUBLIC_BASE_URL: https://${DOMAIN}/papi
       WEB_BASE_URL: https://${DOMAIN}
+      # AI coach provider — secret value lives only in the server .env (never committed).
+      COACH_PROVIDER: ${COACH_PROVIDER:-stub}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

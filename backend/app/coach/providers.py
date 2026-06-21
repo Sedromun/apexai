@@ -26,23 +26,43 @@ import httpx
 from app.core.config import settings
 
 _SYSTEM_PROMPT_RU = (
-    "Ты — персональный AI-инструктор по симрейсингу (F1 24/25). Ты ведёшь ученика по траектории "
-    "обучения: разбор круга → конкретное задание → проверка на следующем круге. "
-    "Тебе дают JSON с УЖЕ посчитанными метриками круга, дельтами к эталону трассы по поворотам, "
-    "и (если есть) блок 'previous' — прошлый круг ученика на этой трассе и задание, которое ты ему "
-    "давал. Опирайся ТОЛЬКО на эти числа, ничего не выдумывай и не противоречь данным. "
-    "Пиши по-русски, тепло и просто, как живой тренер для новичка, но строго по делу — называй "
-    "номера поворотов и числа. Хвали за прогресс, мягко указывай на ошибки.\n"
-    "Верни СТРОГО JSON-объект с ключами:\n"
-    "- summary_text: строка, 1–2 предложения, общий итог круга.\n"
-    "- review: если в данных есть 'previous' — объект {text: как ученик справился с прошлым "
-    "заданием (сравни дельты по тем поворотам: стало лучше/хуже), verdict: 'good' или 'keep', "
-    "items: массив {corner, before_s, after_s, improved (true/false), note}}. Если 'previous' нет — null.\n"
-    "- focus_points: массив 1–2 объектов {corner, title, target} — ЗАДАНИЕ на эту сессию: что "
-    "отрабатывать, с измеримой целью (например: тормозить на 10 м позже, нести в апексе +8 км/ч).\n"
-    "- top_mistakes: массив не более 3 объектов {title, detail, corner, time_loss_s} — где теряешь время.\n"
-    "- corner_notes: массив {corner, note}.\n"
-    "- training_plan: массив строк — короткий план тренировки."
+    "Ты — персональный AI-инструктор по симрейсингу (F1 24/25). Ведёшь ученика по траектории "
+    "обучения: разбор круга → конкретное задание (домашка) → проверка на следующем круге.\n\n"
+    "ТЕБЕ ДАЮТ JSON с уже посчитанными метриками (не сырая телеметрия):\n"
+    "- lap_time_s — время круга; delta_to_reference_s — отставание от эталона трассы в секундах "
+    "(положительное = медленнее эталона).\n"
+    "- summary — агрегаты круга (full_throttle_pct, braking_pct и т.д.).\n"
+    "- corners[] — по каждому повороту: entry/apex/exit_kmh (скорости вход/апекс/выход), "
+    "brake_to_apex_m (за сколько метров до апекса начинаешь тормозить), trail_brake_m, "
+    "steer_reversals (подруливания рулём), direction.\n"
+    "- biggest_losses[] — повороты, где теряешь больше всего (delta_s в секундах, >0 = теряешь).\n"
+    "- corner_deltas — {номер_поворота: delta_s} по ВСЕМ поворотам (>0 = медленнее эталона тут).\n"
+    "- previous (если есть) — прошлый круг ученика на этой трассе: его lap_time_s, focus_points "
+    "(домашка, которую ты задал), corner_deltas (его дельты в тот раз).\n\n"
+    "ПРАВИЛА:\n"
+    "- Опирайся ТОЛЬКО на эти числа. Не выдумывай повороты и значения, не противоречь данным. "
+    "Номера поворотов бери строго из corners.\n"
+    "- Пиши по-русски, тепло и просто, как живой тренер новичку, но по делу: конкретные повороты, "
+    "числа, действия. Без воды и общих фраз.\n"
+    "- Если есть previous — ОБЯЗАТЕЛЬНО заполни review: по каждому повороту из previous.focus_points "
+    "сравни было = previous.corner_deltas[поворот] и стало = corner_deltas[поворот]; "
+    "improved = (было > стало) (отыграл время). Хвали прогресс, по регрессу — мягко подскажи.\n"
+    "- focus_points — это ДОМАШКА на следующую сессию: 1–2 самых дорогих поворота (из biggest_losses) "
+    "с измеримой целью (тормозить на ~10 м позже, нести в апексе +8 км/ч, раньше открывать газ).\n\n"
+    "Верни СТРОГО JSON-объект (без текста вокруг), пример формы:\n"
+    '{\n'
+    '  "summary_text": "Круг 1:11.9 — на 4.2 с медленнее эталона, теряешь в основном на торможениях.",\n'
+    '  "review": {"text": "...", "verdict": "good", "items": [{"corner": 1, "before_s": 1.03, '
+    '"after_s": 0.51, "improved": true, "note": "Т1: было +1.03 с, стало +0.51 с — отыграл 0.52 с!"}]},\n'
+    '  "focus_points": [{"corner": 7, "title": "Поворот 7", "target": "Тормози на 10 м позже и неси '
+    'в апексе +8 км/ч."}],\n'
+    '  "top_mistakes": [{"title": "Поворот 7: теряешь 0.6 с", "detail": "Рано тормозишь...", '
+    '"corner": 7, "time_loss_s": 0.6}],\n'
+    '  "corner_notes": [{"corner": 7, "note": "вход 240 → апекс 95 → выход 180 км/ч"}],\n'
+    '  "training_plan": ["5 кругов с фокусом на Т7", "Держи одинаковые точки торможения"]\n'
+    '}\n'
+    "review = null, если previous нет. verdict = 'good', если улучшил большинство заданных поворотов, "
+    "иначе 'keep'. top_mistakes — не более 3."
 )
 
 _RESPONSE_KEYS = "summary_text, review, focus_points, top_mistakes, corner_notes, training_plan"
@@ -301,16 +321,29 @@ def _extract_json(text: str) -> dict[str, Any]:
 
 
 class OpenAIProvider(CoachProvider):
-    name = "openai"
+    """OpenAI-compatible /chat/completions provider. Also serves DeepSeek (same API shape)."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str | None = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        name: str = "openai",
+    ) -> None:
+        self.name = name
+        self.base_url = base_url or settings.openai_base_url
+        self.model = model or settings.openai_model
+        self.api_key = api_key or settings.openai_api_key
 
     async def analyze(self, payload: dict[str, Any], *, lang: str = "ru") -> CoachResult:
         try:
             async with httpx.AsyncClient(timeout=settings.coach_timeout_s) as client:
                 resp = await client.post(
-                    f"{settings.openai_base_url}/chat/completions",
-                    headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                    f"{self.base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
                     json={
-                        "model": settings.openai_model,
+                        "model": self.model,
                         "messages": [
                             {"role": "system", "content": _SYSTEM_PROMPT_RU},
                             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
@@ -322,8 +355,8 @@ class OpenAIProvider(CoachProvider):
                 resp.raise_for_status()
                 content = resp.json()["choices"][0]["message"]["content"]
         except httpx.HTTPError as exc:
-            raise CoachError(f"OpenAI request failed: {exc}") from exc
-        return _result_from_obj(_extract_json(content), model=f"openai/{settings.openai_model}")
+            raise CoachError(f"{self.name} request failed: {exc}") from exc
+        return _result_from_obj(_extract_json(content), model=f"{self.name}/{self.model}")
 
 
 class AnthropicProvider(CoachProvider):
@@ -361,6 +394,13 @@ def get_coach_provider() -> CoachProvider:
     provider = settings.coach_provider.lower()
     if provider == "openai" and settings.openai_api_key:
         return OpenAIProvider()
+    if provider == "deepseek" and settings.deepseek_api_key:
+        return OpenAIProvider(
+            base_url=settings.deepseek_base_url,
+            model=settings.deepseek_model,
+            api_key=settings.deepseek_api_key,
+            name="deepseek",
+        )
     if provider == "anthropic" and settings.anthropic_api_key:
         return AnthropicProvider()
     return StubProvider()

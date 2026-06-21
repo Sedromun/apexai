@@ -48,14 +48,18 @@ class Settings(BaseSettings):
     free_ai_trial: int = 1
 
     # AI coach (layer 2). Provider-agnostic; "stub" works fully offline (default).
-    coach_provider: str = "stub"  # "stub" | "openai" | "anthropic"
-    coach_timeout_s: int = 30
+    coach_provider: str = "stub"  # "stub" | "openai" | "anthropic" | "deepseek"
+    coach_timeout_s: int = 60
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     openai_base_url: str = "https://api.openai.com/v1"
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-4-6"
     anthropic_base_url: str = "https://api.anthropic.com/v1"
+    # DeepSeek is OpenAI-API-compatible (served via the OpenAIProvider).
+    deepseek_api_key: str | None = None
+    deepseek_model: str = "deepseek-chat"
+    deepseek_base_url: str = "https://api.deepseek.com"
 
     # Billing (stub provider by default; ЮKassa/CloudPayments adapter chosen later).
     public_base_url: str = "http://localhost:8000"
