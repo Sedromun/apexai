@@ -42,6 +42,23 @@ def test_payload_carries_corner_deltas_and_previous():
     assert p["previous"] == prev
 
 
+def test_payload_sanitizes_garbage_metrics():
+    metrics = _metrics()
+    metrics["corners"][0]["brake_to_apex_m"] = 2929.0  # corner-detection glitch
+    # Real lap delta is small, but one corner spiked to 52.87 s (compute_delta glitch).
+    delta = {
+        "distance_m": [0.0, 200.0, 600.0], "delta_s": [0.0, 0.40, 0.50], "total_delta_s": 0.50,
+        "corners": [
+            {"number": 1, "apex_dist_m": 200.0, "delta_s": 0.40, "self_apex_kmh": 90.0},
+            {"number": 2, "apex_dist_m": 600.0, "delta_s": 52.87, "self_apex_kmh": 120.0},
+        ],
+    }
+    p = build_coach_payload(track="X", car=None, metrics=metrics, delta=delta)
+    assert "2" not in p["corner_deltas"] and "1" in p["corner_deltas"]  # garbage delta dropped
+    assert all(c["number"] != 2 for c in p["biggest_losses"])
+    assert p["corners"][0]["brake_to_apex_m"] is None  # impossible distance nulled
+
+
 def test_first_lesson_sets_homework_no_review():
     p = build_coach_payload(track="Zandvoort", car=None, metrics=_metrics(), delta=_delta(0.40, 0.10))
     r = _build_stub_result(p)

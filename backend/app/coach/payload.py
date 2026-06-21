@@ -38,17 +38,28 @@ def build_coach_payload(
         for c in metrics.get("corners", [])
     ]
 
+    # A messy captured lap (telemetry gap / non-monotonic distance) can make compute_delta
+    # spike a single corner to e.g. 52 s, which is physically impossible, poisons the homework,
+    # and trips the anti-hallucination validator so the LLM falls back to the stub. Keep only
+    # corner deltas within the same plausibility ceiling the validator uses.
+    total_delta = abs((delta or {}).get("total_delta_s") or 0.0)
+    plausible_delta = total_delta * 2 + 3.0
+
     biggest_losses: list[dict[str, Any]] = []
     if delta:
         biggest_losses = sorted(
-            (c for c in delta.get("corners", []) if c["delta_s"] > 0.02),
+            (c for c in delta.get("corners", []) if 0.02 < c["delta_s"] <= plausible_delta),
             key=lambda c: c["delta_s"],
             reverse=True,
         )[:3]
 
     corner_deltas: dict[str, float] = {}
     if delta:
-        corner_deltas = {str(c["number"]): round(c["delta_s"], 3) for c in delta.get("corners", [])}
+        corner_deltas = {
+            str(c["number"]): round(c["delta_s"], 3)
+            for c in delta.get("corners", [])
+            if abs(c["delta_s"]) <= plausible_delta
+        }
 
     return {
         "track": track,
