@@ -67,6 +67,28 @@ class CoachReportRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def list_for_user(self, user_id: uuid.UUID):
+        """Every coach lesson for a user, oldest→newest, joined with its lap/track context —
+        the learning trajectory. Returns Row tuples (id, lap_id, summary, created_at, track,
+        game, lap_time_ms, recorded_at)."""
+        stmt = (
+            select(
+                CoachReport.id,
+                CoachReport.lap_id,
+                CoachReport.summary,
+                CoachReport.created_at,
+                RaceSession.track,
+                RaceSession.game,
+                Lap.lap_time_ms,
+                Lap.recorded_at,
+            )
+            .join(Lap, CoachReport.lap_id == Lap.id)
+            .join(RaceSession, Lap.session_id == RaceSession.id)
+            .where(RaceSession.user_id == user_id)
+            .order_by(Lap.recorded_at.asc())
+        )
+        return (await self.db.execute(stmt)).all()
+
     async def create(
         self, *, lap_id: uuid.UUID, summary: dict[str, Any], body: str, model: str
     ) -> CoachReport:

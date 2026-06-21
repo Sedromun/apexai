@@ -210,6 +210,8 @@ export function TelemetryView({
             onHover={onHoverDist}
             onZoom={setXRange}
             xRange={xRange}
+            unit={m.unit ?? ""}
+            decimals={m.key === "steer" || m.key === "delta" ? 2 : 0}
           />
         </div>
       ))}

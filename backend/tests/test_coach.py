@@ -67,6 +67,27 @@ async def test_analyze_is_cached(client):
     assert by_lap.json()["id"] == first.json()["id"]
 
 
+async def test_trajectory_lists_lessons(client):
+    headers = await _auth(client)
+    # empty before any analysis
+    empty = await client.get("/coach/trajectory", headers=headers)
+    assert empty.status_code == 200
+    assert empty.json() == []
+
+    lap = await _upload(client, headers, seed=3, client_lap_uuid="traj-lap-01")
+    await client.post("/coach/analyze", headers=headers, json={"lap_id": lap["id"]})
+
+    traj = await client.get("/coach/trajectory", headers=headers)
+    assert traj.status_code == 200
+    items = traj.json()
+    assert len(items) == 1
+    lesson = items[0]
+    assert lesson["lap_id"] == lap["id"]
+    assert lesson["track"] == SIM_CIRCUIT.name
+    assert lesson["lap_time_ms"] > 0
+    assert "focus_points" in lesson["summary"]  # homework carried into the trajectory
+
+
 async def test_free_trial_limit_enforced(client):
     headers = await _auth(client)
     lap1 = await _upload(client, headers, seed=0, client_lap_uuid="trial-lap-01")

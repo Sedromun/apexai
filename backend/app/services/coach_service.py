@@ -13,6 +13,7 @@ from app.models.coach_report import CoachReport
 from app.models.user import User
 from app.repositories.coach_repo import CoachReportRepository
 from app.repositories.lap_repo import LapRepository
+from app.schemas.coach import TrajectoryLesson
 from app.services import track_catalog
 from app.storage.object_store import ObjectStore
 from app.telemetry.compare import compute_delta
@@ -89,6 +90,22 @@ class CoachService:
         if report is None:
             raise NotFoundError("No report for this lap", code="report_not_found")
         return report
+
+    async def get_trajectory(self, user: User) -> list[TrajectoryLesson]:
+        """The user's learning trajectory: every lesson with its lap/track context, oldest→newest."""
+        rows = await self.reports.list_for_user(user.id)
+        return [
+            TrajectoryLesson(
+                report_id=r.id,
+                lap_id=r.lap_id,
+                track=r.track,
+                game=r.game,
+                lap_time_ms=r.lap_time_ms,
+                recorded_at=r.recorded_at,
+                summary=r.summary,
+            )
+            for r in rows
+        ]
 
     def _enforce_plan_limit(self, user: User, used: int) -> None:
         if user.plan == "pro":

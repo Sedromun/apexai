@@ -40,13 +40,32 @@ export function panWindow(
   return [lo, hi];
 }
 
+/** Index of the value in the ascending array `xs` nearest to `x`. */
+export function nearestIdx(xs: ArrayLike<number>, x: number): number {
+  const n = xs.length;
+  if (n === 0) return 0;
+  if (x <= xs[0]) return 0;
+  if (x >= xs[n - 1]) return n - 1;
+  let lo = 0;
+  let hi = n - 1;
+  while (lo <= hi) {
+    const m = (lo + hi) >> 1;
+    if ((xs[m] as number) < x) lo = m + 1;
+    else hi = m - 1;
+  }
+  return Math.abs((xs[lo] as number) - x) < Math.abs((xs[lo - 1] as number) - x) ? lo : lo - 1;
+}
+
+function fmtVal(v: number, decimals: number): string {
+  return decimals > 0 ? v.toFixed(decimals) : Math.round(v).toString();
+}
+
 /**
- * Thin React wrapper around uPlot. Adds a hover callback (x under the cursor) and an
- * externally controlled x-window so charts share one zoom (mouse-wheel zooms around the
- * cursor, drag pans left/right, double-click resets). Interactions report the new window
- * via `onZoom`; the parent feeds it back through `xRange`, which is the single applier of
- * the scale to every chart — handlers never call setScale directly (that round-trip raced
- * and reset the zoom).
+ * Thin React wrapper around uPlot. The cursor reports the x under the *vertical
+ * crosshair* (not the nearest data point) so the track-map marker follows continuously
+ * anywhere in the plot, and a small tooltip shows the channel value(s) at that line.
+ * Mouse-wheel zooms around the cursor, drag pans, double-click resets — interactions
+ * report the new window via `onZoom`, and the `xRange` effect is the single applier.
  */
 export function UplotChart({
   data,
@@ -55,6 +74,8 @@ export function UplotChart({
   onHover,
   onZoom,
   xRange,
+  unit = "",
+  decimals = 0,
 }: {
   data: (number | null)[][];
   options: Omit<uPlot.Options, "width" | "height">;
@@ -62,13 +83,13 @@ export function UplotChart({
   onHover?: (x: number | null) => void;
   onZoom?: (range: [number, number] | null) => void;
   xRange?: [number, number] | null;
+  unit?: string;
+  decimals?: number;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<uPlot | null>(null);
   const onHoverRef = useRef(onHover);
   const onZoomRef = useRef(onZoom);
-  // Synchronous source of truth for the current window so rapid wheel ticks compound
-  // without waiting for the React round-trip. null = full extent.
   const rangeRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
@@ -81,20 +102,52 @@ export function UplotChart({
     if (!host) return;
     const width = host.clientWidth || 600;
 
+    // Value readout that rides the crosshair (built imperatively; uPlot is imperative).
+    const tip = document.createElement("div");
+    tip.style.cssText =
+      "position:absolute;top:4px;z-index:10;display:none;transform:translateX(-50%);" +
+      "pointer-events:none;white-space:nowrap;line-height:1.35;";
+    tip.className =
+      "rounded-md border border-border bg-surface-2/95 px-2 py-1 text-[11px] font-mono shadow-lg backdrop-blur-sm";
+
     const merged = { ...options, width, height } as uPlot.Options;
     merged.hooks = {
       ...(options.hooks || {}),
       setCursor: [
         ...(options.hooks?.setCursor ?? []),
         (u: uPlot) => {
-          const i = u.cursor.idx;
-          onHoverRef.current?.(i == null || i < 0 ? null : (u.data[0][i] as number));
+          const left = u.cursor.left ?? -1;
+          if (left == null || left < 0) {
+            onHoverRef.current?.(null);
+            tip.style.display = "none";
+            return;
+          }
+          const xv = u.posToVal(left, "x");
+          onHoverRef.current?.(Number.isFinite(xv) ? xv : null);
+
+          const xs = u.data[0] as unknown as number[];
+          const idx = nearestIdx(xs, xv);
+          const lines = [`<span style="opacity:.55">${Math.round(xv)} м</span>`];
+          for (let s = 1; s < u.series.length; s++) {
+            const v = u.data[s]?.[idx];
+            if (v == null || Number.isNaN(v)) continue;
+            const st = u.series[s].stroke;
+            const col = typeof st === "string" ? st : "#f4f6fb";
+            lines.push(
+              `<span style="color:${col}">●</span> ${fmtVal(v as number, decimals)}${unit ? ` ${unit}` : ""}`,
+            );
+          }
+          tip.innerHTML = lines.join("<br>");
+          const w = u.over.clientWidth || width;
+          tip.style.left = `${Math.max(30, Math.min(w - 30, left))}px`;
+          tip.style.display = "block";
         },
       ],
     };
 
     const chart = new uPlot(merged, data as unknown as uPlot.AlignedData, host);
     chartRef.current = chart;
+    chart.over.appendChild(tip);
 
     const over = chart.over;
     const fullMin = () => chart.data[0][0] as number;
@@ -168,13 +221,12 @@ export function UplotChart({
     };
     // Initial `data` is applied on create; later updates flow through the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options, height]);
+  }, [options, height, unit, decimals]);
 
   useEffect(() => {
     chartRef.current?.setData(data as unknown as uPlot.AlignedData);
   }, [data]);
 
-  // The single applier of the shared x-window to this chart (and so, every chart).
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -188,5 +240,5 @@ export function UplotChart({
     }
   }, [xRange]);
 
-  return <div ref={hostRef} className="w-full" />;
+  return <div ref={hostRef} className="relative w-full" />;
 }

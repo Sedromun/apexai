@@ -14,6 +14,7 @@ import type {
   SessionSummary,
   TrackInfo,
   TrackReferenceResponse,
+  TrajectoryLesson,
 } from "./types";
 
 export function useSessions() {
@@ -104,7 +105,15 @@ export function useAnalyzeLap() {
     mutationFn: (lapId: string) => apiJson<CoachReport>("/coach/analyze", "POST", { lap_id: lapId }),
     onSuccess: (report) => {
       qc.setQueryData(["coach", report.lap_id], report);
+      qc.invalidateQueries({ queryKey: ["coach-trajectory"] });
     },
+  });
+}
+
+export function useCoachTrajectory() {
+  return useQuery({
+    queryKey: ["coach-trajectory"],
+    queryFn: () => apiFetch<TrajectoryLesson[]>("/coach/trajectory"),
   });
 }
 

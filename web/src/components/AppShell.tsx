@@ -42,6 +42,16 @@ function CompareIcon() {
   );
 }
 
+function TargetIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 function DiamondIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -63,6 +73,7 @@ function ExitIcon() {
 const NAV = [
   { href: "/dashboard", label: "Дашборд", Icon: GaugeIcon },
   { href: "/laps", label: "Круги", Icon: ActivityIcon },
+  { href: "/training", label: "Тренер", Icon: TargetIcon },
   { href: "/compare", label: "Сравнение", Icon: CompareIcon },
   { href: "/account", label: "Аккаунт", Icon: DiamondIcon },
 ];

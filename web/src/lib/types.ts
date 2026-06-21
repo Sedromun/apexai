@@ -176,6 +176,16 @@ export interface CoachReport {
   created_at: string;
 }
 
+export interface TrajectoryLesson {
+  report_id: string;
+  lap_id: string;
+  track: string | null;
+  game: string;
+  lap_time_ms: number;
+  recorded_at: string;
+  summary: CoachSummary;
+}
+
 export interface Plan {
   id: string;
   title: string;

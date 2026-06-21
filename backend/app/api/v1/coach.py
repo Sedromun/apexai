@@ -3,9 +3,15 @@ import uuid
 from fastapi import APIRouter
 
 from app.core.deps import CoachServiceDep, CurrentUser
-from app.schemas.coach import CoachAnalyzeRequest, CoachReportOut
+from app.schemas.coach import CoachAnalyzeRequest, CoachReportOut, TrajectoryLesson
 
 router = APIRouter(tags=["coach"])
+
+
+@router.get("/coach/trajectory", response_model=list[TrajectoryLesson])
+async def trajectory(user: CurrentUser, service: CoachServiceDep) -> list[TrajectoryLesson]:
+    """The user's learning trajectory — every coach lesson with lap/track context, oldest→newest."""
+    return await service.get_trajectory(user)
 
 
 @router.post("/coach/analyze", response_model=CoachReportOut, status_code=201)

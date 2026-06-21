@@ -21,3 +21,15 @@ class CoachReportOut(BaseModel):
     body: str
     model: str
     created_at: datetime
+
+
+class TrajectoryLesson(BaseModel):
+    """One coach lesson in the learning trajectory, with its lap/track context."""
+
+    report_id: uuid.UUID
+    lap_id: uuid.UUID
+    track: str | None
+    game: str
+    lap_time_ms: int
+    recorded_at: datetime
+    summary: dict[str, Any]
