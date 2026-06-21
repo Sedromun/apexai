@@ -230,11 +230,13 @@ export default function LapPage() {
             </div>
             <TrackMap
               map={track?.map}
-              markerFrac={
-                hoverDist != null
-                  ? hoverDist / (track?.length_m ?? trace.channels.lap_dist_m.at(-1) ?? 1)
-                  : null
-              }
+              markerFrac={(() => {
+                if (hoverDist == null) return null;
+                const d = trace.channels.lap_dist_m;
+                const d0 = d[0] ?? 0;
+                const span = (d.at(-1) ?? 1) - d0 || 1;
+                return (hoverDist - d0) / span; // true fraction of the lap (0..1)
+              })()}
             />
             {compareView && (
               <div className="mt-3 grid grid-cols-3 gap-2">

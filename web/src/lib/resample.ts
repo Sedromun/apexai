@@ -30,3 +30,28 @@ export function resampleByDistance(
   }
   return out;
 }
+
+/**
+ * Overlay a reference lap onto the current lap aligned by LAP FRACTION rather than
+ * absolute metres. Two laps of the same circuit can have slightly different measured
+ * lengths and a different distance origin (the game's start/finish vs Racenet's timing
+ * point) — e.g. a Zandvoort эталон reads 4199 m vs a captured 4256 m, a ~60 m skew that
+ * smears every corner. Normalising each lap to [0,1] over its own start→finish makes the
+ * corners line up. Both distance arrays must be monotonically non-decreasing.
+ */
+export function resampleByFraction(
+  srcDist: number[],
+  srcVals: number[],
+  targetDist: number[],
+): (number | null)[] {
+  if (srcDist.length === 0 || targetDist.length === 0) {
+    return new Array<number | null>(targetDist.length).fill(null);
+  }
+  const s0 = srcDist[0];
+  const sSpan = srcDist[srcDist.length - 1] - s0 || 1;
+  const t0 = targetDist[0];
+  const tSpan = targetDist[targetDist.length - 1] - t0 || 1;
+  const srcFrac = srcDist.map((d) => (d - s0) / sSpan);
+  const targetFrac = targetDist.map((d) => (d - t0) / tSpan);
+  return resampleByDistance(srcFrac, srcVals, targetFrac);
+}

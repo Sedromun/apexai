@@ -3,7 +3,7 @@
 import uPlot from "uplot";
 import { useMemo, useState } from "react";
 import { Chip } from "@/components/ui/Chip";
-import { resampleByDistance } from "@/lib/resample";
+import { resampleByFraction } from "@/lib/resample";
 import type { LapTrace } from "@/lib/types";
 import { UplotChart } from "./UplotChart";
 
@@ -65,7 +65,8 @@ function dataRange(...arrays: (number | null)[][]): [number, number] {
 function options(series: uPlot.Series[], yRange?: [number, number]): Omit<uPlot.Options, "width" | "height"> {
   return {
     scales: { x: { time: false }, y: yRange ? { range: yRange } : {} },
-    cursor: { sync: { key: "lap" }, points: { size: 5 }, focus: { prox: 24 } },
+    // drag is handled manually as a pan (see UplotChart); disable uPlot's drag-to-zoom.
+    cursor: { sync: { key: "lap" }, drag: { x: false, y: false }, points: { size: 5 }, focus: { prox: 24 } },
     legend: { show: false },
     series,
     axes: [
@@ -121,7 +122,11 @@ export function TelemetryView({
       let refValues: (number | null)[] | null = null;
       if (showRef && reference) {
         const refRaw = reference.channels[meta.channel as string];
-        const resampled = resampleByDistance(reference.channels.lap_dist_m, refRaw, x);
+        // Align by lap fraction, not absolute metres, so corners overlap (see resampleByFraction).
+        let resampled = resampleByFraction(reference.channels.lap_dist_m, refRaw, x);
+        // Racenet's steering sign is inverted relative to our F1-UDP capture — flip it
+        // so the reference wheel trace matches the driver's (left/right not mirrored).
+        if (meta.channel === "steer") resampled = resampled.map((v) => (v === null ? null : -v));
         refValues = meta.scalePct ? resampled.map((v) => (v === null ? null : v * 100)) : resampled;
         data.push(refValues);
         series.push({
@@ -210,7 +215,8 @@ export function TelemetryView({
       ))}
       {(reference || compare) && (
         <p className="px-1 text-[11px] text-muted">
-          Потяни по графику, чтобы приблизить · двойной клик — сброс · наведи — точка на карте
+          Колесо мыши — зум · потяни — двигать влево-вправо · двойной клик — сброс · наведи — точка
+          на карте
         </p>
       )}
     </div>

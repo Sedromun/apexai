@@ -65,12 +65,88 @@ export function UplotChart({
     const chart = new uPlot(merged, data as unknown as uPlot.AlignedData, host);
     chartRef.current = chart;
 
+    // --- mouse-wheel zoom (around the cursor) + drag-to-pan ---------------------
+    // setScale() fires the setScale hook above, which reports the new window up to
+    // the parent and syncs every sibling chart through the shared `xRange`.
+    const over = chart.over;
+    const fullMin = () => chart.data[0][0] as number;
+    const fullMax = () => chart.data[0][chart.data[0].length - 1] as number;
+    const MIN_SPAN_FRAC = 0.015; // don't let the window shrink below ~1.5% of the lap
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const sx = chart.scales.x;
+      if (sx.min == null || sx.max == null) return;
+      const rect = over.getBoundingClientRect();
+      if (!rect.width) return;
+      const pivot = chart.posToVal(e.clientX - rect.left, "x");
+      const factor = e.deltaY < 0 ? 0.82 : 1 / 0.82; // wheel up = zoom in
+      const fMin = fullMin();
+      const fMax = fullMax();
+      let lo = pivot - (pivot - sx.min) * factor;
+      let hi = pivot + (sx.max - pivot) * factor;
+      lo = Math.max(fMin, lo);
+      hi = Math.min(fMax, hi);
+      if (hi - lo < (fMax - fMin) * MIN_SPAN_FRAC) return;
+      if (lo >= hi) return;
+      chart.setScale("x", { min: lo, max: hi });
+    };
+
+    let panning = false;
+    let panStartX = 0;
+    let panMin = 0;
+    let panMax = 0;
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const sx = chart.scales.x;
+      if (sx.min == null || sx.max == null) return;
+      panning = true;
+      panStartX = e.clientX;
+      panMin = sx.min;
+      panMax = sx.max;
+      over.style.cursor = "grabbing";
+    };
+    const onMove = (e: MouseEvent) => {
+      if (!panning) return;
+      const rect = over.getBoundingClientRect();
+      if (!rect.width) return;
+      const span = panMax - panMin;
+      const dx = ((e.clientX - panStartX) / rect.width) * span;
+      const fMin = fullMin();
+      const fMax = fullMax();
+      let lo = panMin - dx;
+      let hi = panMax - dx;
+      if (lo < fMin) [lo, hi] = [fMin, fMin + span];
+      if (hi > fMax) [lo, hi] = [fMax - span, fMax];
+      chart.setScale("x", { min: lo, max: hi });
+    };
+    const onUp = () => {
+      if (!panning) return;
+      panning = false;
+      over.style.cursor = "";
+    };
+    const onDblClick = () => {
+      onZoomRef.current?.(null);
+      chart.setScale("x", { min: fullMin(), max: fullMax() });
+    };
+
+    over.addEventListener("wheel", onWheel, { passive: false });
+    over.addEventListener("mousedown", onDown);
+    over.addEventListener("dblclick", onDblClick);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
     const ro = new ResizeObserver(() => {
       chart.setSize({ width: host.clientWidth || width, height });
     });
     ro.observe(host);
 
     return () => {
+      over.removeEventListener("wheel", onWheel);
+      over.removeEventListener("mousedown", onDown);
+      over.removeEventListener("dblclick", onDblClick);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
       ro.disconnect();
       chart.destroy();
       chartRef.current = null;
