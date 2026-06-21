@@ -3,6 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import type { TrackMapGeo } from "@/lib/types";
 
+/**
+ * Map a lap-distance fraction onto an outline-arc-length fraction through the
+ * per-track warp control points, so the marker sits on the right corner (the
+ * outline's length doesn't accumulate at the lap-distance rate). Identity when
+ * no warp is available.
+ */
+function warpFraction(f: number, cps?: [number, number][] | null): number {
+  const x = Math.max(0, Math.min(1, f));
+  if (!cps || cps.length < 2) return x;
+  for (let i = 0; i < cps.length - 1; i++) {
+    const [x0, y0] = cps[i];
+    const [x1, y1] = cps[i + 1];
+    if (x <= x1) return x1 > x0 ? y0 + ((x - x0) / (x1 - x0)) * (y1 - y0) : y0;
+  }
+  return cps[cps.length - 1][1];
+}
+
 /** Real circuit outline (normalized SVG path from bacinger/f1-circuits, MIT). */
 export function TrackMap({ map, markerFrac }: { map?: TrackMapGeo | null; markerFrac?: number | null }) {
   const pathRef = useRef<SVGPathElement>(null);
@@ -15,7 +32,7 @@ export function TrackMap({ map, markerFrac }: { map?: TrackMapGeo | null; marker
       return;
     }
     const len = path.getTotalLength();
-    const p = path.getPointAtLength(len * Math.max(0, Math.min(1, markerFrac)));
+    const p = path.getPointAtLength(len * warpFraction(markerFrac, map?.align_warp));
     setMarker({ x: p.x, y: p.y });
   }, [markerFrac, map]);
 

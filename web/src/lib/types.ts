@@ -193,6 +193,8 @@ export interface TrackMapGeo {
   view_box: string;
   path: string;
   start: { x: number; y: number };
+  /** Monotonic [lapFrac, outlineFrac] control points aligning lap distance to the outline. */
+  align_warp?: [number, number][] | null;
 }
 
 export interface TrackReferenceMeta {

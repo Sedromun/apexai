@@ -14,6 +14,9 @@ class TrackMap(BaseModel):
     view_box: str
     path: str
     start: dict[str, float]
+    # Monotonic [[lapFrac, outlineFrac], ...] warp aligning lap distance to the
+    # outline so the hover marker tracks corners (see build_track_align.py). May be null.
+    align_warp: list[list[float]] | None = None
 
 
 class TrackReferenceMeta(BaseModel):
