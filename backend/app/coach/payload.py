@@ -7,6 +7,13 @@ from typing import Any
 from app.coach.providers import CoachResult, CoachValidationError
 
 
+def _dist(value: Any, hi: float) -> float | None:
+    """Pass a distance metric through only if physically plausible — corner detection can
+    occasionally place a brake point a whole sector away; feeding that to the coach makes it
+    cite nonsense like 'тормозишь за 2929 м до апекса'. Implausible → null (the model omits it)."""
+    return value if isinstance(value, (int, float)) and 0 <= value <= hi else None
+
+
 def build_coach_payload(
     *,
     track: str | None,
@@ -23,8 +30,8 @@ def build_coach_payload(
             "entry_kmh": c["entry_speed_kmh"],
             "apex_kmh": c["apex_speed_kmh"],
             "exit_kmh": c["exit_speed_kmh"],
-            "brake_to_apex_m": c["brake_to_apex_m"],
-            "trail_brake_m": c["trail_brake_overlap_m"],
+            "brake_to_apex_m": _dist(c["brake_to_apex_m"], 400),
+            "trail_brake_m": _dist(c["trail_brake_overlap_m"], 250),
             "steer_reversals": c["steering_reversals"],
             "direction": c["direction"],
         }
